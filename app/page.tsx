@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { species as builtInSpecies, type Batch } from "@/lib/data";
 import { useCultivation } from "@/lib/use-cultivation";
+import { SpeciesPhoto } from "@/components/species-photo";
 import type { Mutation } from "@/lib/validation";
 
 const navigation = [
@@ -811,10 +812,9 @@ export default function Home() {
                   (s, i) =>
                     match(s.name, s.latin) && (
                       <article className="species-card" key={s.name}>
-                        <div className={"species-art art-" + (i % 3)}>
-                          <MushroomArt variant={i % 2} />
+                        <SpeciesPhoto name={s.name} className="species-art">
                           <span className="badge">{s.tag}</span>
-                        </div>
+                        </SpeciesPhoto>
                         <div className="batch-body">
                           <h2>{s.name}</h2>
                           <em>{s.latin}</em>
@@ -1049,9 +1049,11 @@ export default function Home() {
             >
               <X />
             </button>
-            <div className="guide-art">
-              <MushroomArt variant={guide % 2} />
-            </div>
+            <SpeciesPhoto
+              name={species[guide].name}
+              className="guide-art"
+              eager
+            />
             <p className="eyebrow">
               {guide < builtInSpecies.length
                 ? "ODLINGSGUIDE · INTRODUKTION"

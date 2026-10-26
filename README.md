@@ -26,7 +26,7 @@ För utveckling: `pnpm dev`.
 - Svampbibliotek med nio inbyggda introduktionsguider och källhänvisningar. Lägg till egna svampar med namn, vetenskapligt namn, beskrivning, odlingsråd och valfri källänk. Egna svampar sparas i SQLite, kan sökas fram och kan väljas i nya odlingsprojekt.
 - Sökning och JSON-export via knappen i sidhuvudet.
 
-Bibliotekets inbyggda texter och illustrationer fungerar offline. Länkar till externa källor kräver internet.
+Bibliotekets inbyggda texter och artfotografier fungerar offline. De nio inbyggda arterna samt kantarell har lokala WebP-bilder som visas på bibliotekskort och i guider. Egna svampar utan foto visar ”Bild saknas”. Bildkällor, fotografer och licenser finns i `public/images/mushrooms/CREDITS.md` och vid bilderna i appen. Länkar till externa källor kräver internet.
 
 ## Lokal databas och exempeldata
 
@@ -76,7 +76,7 @@ Inga lösenord, API-nycklar eller riktiga användaruppgifter ska läggas i repos
 - `lib/data.ts`: domäntyper, exempeldata och bibliotekstexter.
 - `tests/database.test.mjs`: tester med verkliga SQLite-databaser, inklusive omstart och validering.
 
-SQLite-stödet kommer från Node.js inbyggda `node:sqlite`. Inga separata databasprogram, SQLite-servrar eller native npm-tillägg behöver installeras. Svampillustrationerna är egen SVG-grafik; typsnitt, CSS och ikoner kräver inga externa tjänster under användning.
+SQLite-stödet kommer från Node.js inbyggda `node:sqlite`. Inga separata databasprogram, SQLite-servrar eller native npm-tillägg behöver installeras. Bibliotekets fotografier levereras med appen. Övriga svampillustrationer är egen SVG-grafik; typsnitt, CSS, ikoner och foton kräver inga externa tjänster under användning.
 
 ## Kontroller
 

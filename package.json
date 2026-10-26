@@ -7,7 +7,7 @@
     "build": "next build --webpack",
     "start": "next start --hostname 127.0.0.1",
     "typecheck": "tsc --noEmit",
-    "format:check": "prettier --check app lib package.json tsconfig.json postcss.config.mjs README.md",
+    "format:check": "prettier --check app components lib package.json tsconfig.json postcss.config.mjs README.md",
     "test": "node --experimental-strip-types --test tests/*.test.mjs"
   },
   "dependencies": {
