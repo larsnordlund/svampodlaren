@@ -3,11 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev --webpack",
+    "dev": "next dev --webpack --hostname 127.0.0.1",
     "build": "next build --webpack",
-    "start": "next start",
+    "start": "next start --hostname 127.0.0.1",
     "typecheck": "tsc --noEmit",
-    "format:check": "prettier --check app lib package.json tsconfig.json postcss.config.mjs README.md"
+    "format:check": "prettier --check app lib package.json tsconfig.json postcss.config.mjs README.md",
+    "test": "node --experimental-strip-types --test tests/*.test.mjs"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",
@@ -26,6 +27,7 @@
   },
   "packageManager": "pnpm@11.25.0",
   "engines": {
-    "node": ">=22.0.0"
-  }
+    "node": ">=22.13.0"
+  },
+  "type": "module"
 }

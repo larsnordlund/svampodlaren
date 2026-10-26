@@ -5,3 +5,7 @@ out/
 !.env.example
 *.tsbuildinfo
 .DS_Store
+data/
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm

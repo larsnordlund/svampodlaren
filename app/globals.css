@@ -1392,3 +1392,11 @@ td small {
     box-shadow: 0 6px 20px #273d3010;
   }
 }
+.form-fields {
+  display: grid;
+  gap: 17px;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  min-width: 0;
+}

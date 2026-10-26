@@ -1,88 +1,88 @@
 # Svampodlaren 🍄
 
-Svampodlaren är en planerad svensk webb- och mobilanpassad plattform för svampodling.
+En svensk, mobilanpassad app för svampodling med **Next.js, TypeScript, Tailwind CSS och SQLite**. Den körs lokalt på datorn och fungerar utan internet när installationen är klar. Ingen molntjänst, Supabase-anslutning eller inloggning behövs.
 
-## Syfte
+## Kom igång
 
-- Odlingsdagbok med anteckningar, bilder och observationer
-- Projekt- och batchregister med spårbarhet
-- Skörderegistrering
-- Svampbibliotek med odlingsguider och källhänvisningar
-- Webbutik för framtida försäljning
-
-## Planerad teknik
-
-- Next.js (App Router), TypeScript och Tailwind CSS
-- Supabase: PostgreSQL, Auth och Storage
-- Vercel för webbpublicering
-- Stripe Checkout i en senare fas
-
-## Arkitektur
-
-Börja med en odlingsverksamhet, men utforma databasen för flera separata verksamheter (`organizations`, `organization_members`). Privata tabeller ska skyddas av Row Level Security (RLS), och bilder av säkra Storage-policyer.
-
-## Första utvecklingssteg
-
-1. Skapa en responsiv Next.js-app med svenskt gränssnitt och tydligt markerade exempeldata.
-2. Bygg dashboard, odlingsprojekt, batchregister, dagbok, skördar och svampbibliotek.
-3. Inför Supabase-migrationer, säker inloggning och organisationstillhörighet.
-4. Lägg till tester och CI innan produktionslansering.
-5. Implementera webbutik och betalningar i senare etapp.
-
-## Säkerhet
-
-Lägg aldrig in lösenord, privata API-nycklar eller riktiga användaruppgifter i repositoryt. Använd miljövariabler och en `.env.example` utan hemligheter.
-
-## Status
-
-Första fungerande demoversionen är implementerad med Next.js, TypeScript och Tailwind CSS. Supabase och produktionsinloggning återstår.
-
-## Kör första versionen lokalt
-
-Kräver Node.js 22 eller senare och pnpm 11 (aktivera vid behov med `corepack enable`).
+Använd Node.js 24 LTS (minst 22.13) och pnpm 11. Första paketinstallationen kräver internet. Därefter behövs ingen uppkoppling för att bygga, starta eller använda appen.
 
 ```sh
-pnpm install
-pnpm dev
-```
-
-Öppna http://localhost:3000. För verifiering och produktionskörning:
-
-```sh
+pnpm install --frozen-lockfile
 pnpm build
-pnpm typecheck
 pnpm start
 ```
 
-### Det här ingår
+Öppna **http://127.0.0.1:3000** på samma dator. Låt terminalen med appen vara igång medan du använder den. Stoppa med Ctrl+C. Vid nästa användning räcker `pnpm start`; dina poster finns kvar.
 
-- Svensk, responsiv översikt med statistik som beräknas från odlingsdata.
-- Odlingsprojekt och batchregister med koppling mellan projekt och batcher, sökning, fasfilter och ändring av odlingsfas.
-- Odlingsdagbok med datum, observation, temperatur och luftfuktighet.
+För utveckling: `pnpm dev`.
+
+## Det här ingår
+
+- Dashboard med statistik beräknad från den lokala databasen.
+- Odlingsprojekt med art, plats och startdatum.
+- Batchregister med projektkoppling, unika batchnamn, substrat, fasfilter och ändringsbar odlingsfas.
+- Odlingsdagbok med observation, datum, temperatur och luftfuktighet.
 - Skörderegistrering med batch, datum, vikt i gram och skördevåg.
-- Svampbibliotek med tre introduktionsguider och länkar för vidare läsning.
-- Formulär för att skapa projekt, batcher, dagboksinlägg och skördar samt JSON-export via knappen i sidhuvudet.
+- Svampbibliotek med tre introduktionsguider och källhänvisningar.
+- Sökning och JSON-export via knappen i sidhuvudet.
 
-### Exempeldata och lagring
+Bibliotekets inbyggda texter och illustrationer fungerar offline. Länkar till externa källor kräver internet.
 
-All information i den första versionen är exempeldata. Första besöket laddar `lib/data.ts`.
-Ändringar sparas i `localStorage` under `svampodlaren-demo-v1` i den aktuella webbläsaren.
-Lagringen delas inte mellan enheter eller användare. Radera den nyckeln i webbläsaren för att återställa demot.
-Använd exportknappen för att spara en JSON-kopia. Om webbläsarlagringen inte fungerar visas ett meddelande och ändringarna finns kvar i minnet under besöket.
+## Lokal databas och exempeldata
 
-Supabase, inloggning, bildhantering, butik och betalningar är ännu inte inkopplade.
-Inga miljövariabler krävs för att köra demot; `.env.example` innehåller endast tomma platshållare.
-När Supabase införs ska datamodellen kompletteras med organisationstillhörighet och RLS före riktig användardata.
+Appen skapar automatiskt **`data/svampodlaren.sqlite`** vid första användningen. Då läggs exempelprojekt, batcher, observationer och skördar in en gång. Därefter sparas alla ändringar permanent i SQLite. Exempeldata läggs inte tillbaka vid omstart.
 
-### Kodstruktur
+Webbläsaren hämtar och sparar uppgifter via appens lokala `/api/data`. SQLite körs i Node.js-processen på samma dator; filen skickas inte till någon extern tjänst. Databasen behöver vara skrivbar. Ett misslyckat sparande visas som ett fel och formulärets innehåll finns kvar.
 
-- `app/page.tsx`: klientgränssnitt och lokala registreringsflöden.
-- `app/globals.css`: Tailwind CSS 4 samt naturinspirerad responsiv formgivning.
-- `lib/data.ts`: typade exempeldata och biblioteksinnehåll. Ersätt den lokala datalagringen med ett separat Supabase-datalager i nästa etapp.
+Tidigare demodata i `localStorage` lämnas orörda och importeras inte automatiskt. Den nya versionen använder SQLite som datakälla, även om du byter webbläsare på datorn.
 
-Svampillustrationerna är egen SVG-grafik och kräver inga externa bildtjänster eller typsnitt.
+### Databasens plats
+
+Standardinställningen kräver ingen konfiguration. För en annan plats, kopiera `.env.example` till `.env.local` och ange en absolut sökväg:
+
+```dotenv
+SQLITE_PATH=/absolut/sokvag/svampodlaren.sqlite
+```
+
+Starta om appen efter ändringen. Filerna `*.sqlite-wal` och `*.sqlite-shm` som kan ligga intill databasen hör till SQLite. Databasfiler och `.env.local` är undantagna från Git.
+
+### Säkerhetskopiera och återställ
+
+Exportknappen sparar odlingsdata som läsbar JSON; automatisk JSON-import ingår inte ännu.
+För en fullständig återställningsbar kopia:
+
+1. Stoppa appen med Ctrl+C och se till att ingen annan instans använder samma databas.
+2. Kopiera hela `data`-mappen (eller mappen med din alternativa databas) till en säker plats.
+3. För återställning: stoppa appen, spara undan nuvarande datamapp och ersätt den med säkerhetskopian innan du startar igen.
+
+## Lokal användning och säkerhet
+
+Appen har ingen användarinloggning och är avsedd för en verksamhet på en dator. Startkommandona binder servern till `127.0.0.1`. API:t accepterar bara lokala värdnamn, och skrivningar kräver samma origin. Även servern validerar uppgifter och använder parametriserad SQL, främmande nycklar och databasbegränsningar.
+
+Appen ska inte publiceras direkt på internet eller användas som en fleranvändartjänst. Det skulle kräva autentisering och verksamhetsisolering först. Den här SQLite-versionen behöver en lokal Node.js-process och en beständig datamapp; den är inte avsedd för Vercels tillfälliga filsystem.
+
+Inga lösenord, API-nycklar eller riktiga användaruppgifter ska läggas i repositoryt. Bildhantering, webbutik, betalningar och molnsynkronisering ingår inte i denna version.
+
+## Kodstruktur
+
+- `app/page.tsx`: de sex vyerna och registreringsformulären.
+- `app/api/data/route.ts`: lokalt GET/POST-API utan cachelagring.
+- `lib/database.ts`: SQLite-schema, versionshantering, engångsdata, läsning och skrivning.
+- `lib/validation.ts`: typad servervalidering för registrering och fasändring.
+- `lib/local-request.ts`: kontroll av lokala värdar och origin.
+- `lib/use-cultivation.ts`: hämtning, sparstatus och felhantering i gränssnittet.
+- `lib/data.ts`: domäntyper, exempeldata och bibliotekstexter.
+- `tests/database.test.mjs`: tester med verkliga SQLite-databaser, inklusive omstart och validering.
+
+SQLite-stödet kommer från Node.js inbyggda `node:sqlite`. Inga separata databasprogram, SQLite-servrar eller native npm-tillägg behöver installeras. Svampillustrationerna är egen SVG-grafik; typsnitt, CSS och ikoner kräver inga externa tjänster under användning.
 
 ## Kontroller
 
-GitHub Actions kör installation från låsfil, produktionsbygge och TypeScript-kontroll för pull requests och uppdateringar av main.
-`pnpm format:check` kontrollerar kodformatering. Bygg- och utvecklingskommandona använder Next.js Webpack-stöd för kompatibilitet med begränsade lokala körmiljöer.
+```sh
+pnpm test
+pnpm build
+pnpm typecheck
+pnpm format:check
+```
+
+GitHub Actions kör SQLite-tester, produktionsbygge och TypeScript-kontroll. Bygg- och utvecklingskommandona använder Next.js Webpack-stöd för kompatibilitet med begränsade lokala körmiljöer.

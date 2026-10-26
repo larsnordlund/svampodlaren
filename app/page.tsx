@@ -19,7 +19,9 @@ import {
   Wheat,
   X,
 } from "lucide-react";
-import { seed, species, type Data, type Batch } from "@/lib/data";
+import { species, type Batch } from "@/lib/data";
+import { useCultivation } from "@/lib/use-cultivation";
+import type { Mutation } from "@/lib/validation";
 
 const navigation = [
   { name: "Översikt", icon: LayoutDashboard },
@@ -110,41 +112,13 @@ function MushroomArt({ variant = 0 }: { variant?: number }) {
 
 export default function Home() {
   const [view, setView] = useState<View>("Översikt");
-  const [data, setData] = useState<Data>(seed);
-  const [ready, setReady] = useState(false);
-  const [storageError, setStorageError] = useState(false);
+  const { data, ready, saving, error, save, retry } = useCultivation();
   const [menu, setMenu] = useState(false);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("Alla");
   const [form, setForm] = useState<FormKind | null>(null);
   const [notice, setNotice] = useState("");
   const [guide, setGuide] = useState<number | null>(null);
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem("svampodlaren-demo-v1");
-      if (saved) {
-        const parsed: Data = JSON.parse(saved);
-        if (
-          !["projects", "batches", "entries", "harvests"].every((k) =>
-            Array.isArray(parsed[k as keyof Data]),
-          )
-        )
-          throw Error();
-        setData(parsed);
-      }
-    } catch {
-      setStorageError(true);
-    }
-    setReady(true);
-  }, []);
-  useEffect(() => {
-    if (ready)
-      try {
-        localStorage.setItem("svampodlaren-demo-v1", JSON.stringify(data));
-      } catch {
-        setStorageError(true);
-      }
-  }, [data, ready]);
   useEffect(() => {
     if (!form && guide === null) return;
     const previous = document.activeElement as HTMLElement | null;
@@ -207,72 +181,67 @@ export default function Home() {
     setForm(kind);
     setNotice("");
   };
-  function submit(event: FormEvent<HTMLFormElement>) {
+  async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (saving) return;
     const fields = new FormData(event.currentTarget);
     const value = (key: string) => String(fields.get(key) ?? "").trim();
-    const id = crypto.randomUUID();
-    const date = value("date") || today();
-    if (form === "projekt")
-      setData((d) => ({
-        ...d,
-        projects: [
-          ...d.projects,
-          {
-            id,
+    const base = { id: crypto.randomUUID(), date: value("date") || today() };
+    let mutation: Mutation;
+    switch (form) {
+      case "projekt":
+        mutation = {
+          kind: form,
+          record: {
+            ...base,
             name: value("name"),
             species: value("species"),
             location: value("location"),
-            date,
           },
-        ],
-      }));
-    if (form === "batch")
-      setData((d) => ({
-        ...d,
-        batches: [
-          ...d.batches,
-          {
-            id,
+        };
+        break;
+      case "batch":
+        mutation = {
+          kind: form,
+          record: {
+            ...base,
             name: value("name"),
             projectId: value("projectId"),
             substrate: value("substrate"),
             status: "Inokulering",
-            date,
           },
-        ],
-      }));
-    if (form === "anteckning")
-      setData((d) => ({
-        ...d,
-        entries: [
-          {
-            id,
+        };
+        break;
+      case "anteckning":
+        mutation = {
+          kind: form,
+          record: {
+            ...base,
             batchId: value("batchId"),
             text: value("text"),
             temperature: Number(value("temperature")),
             humidity: Number(value("humidity")),
-            date,
           },
-          ...d.entries,
-        ],
-      }));
-    if (form === "skörd")
-      setData((d) => ({
-        ...d,
-        harvests: [
-          ...d.harvests,
-          {
-            id,
+        };
+        break;
+      case "skörd":
+        mutation = {
+          kind: form,
+          record: {
+            ...base,
             batchId: value("batchId"),
             weight: Number(value("weight")),
             flush: Number(value("flush")),
-            date,
           },
-        ],
-      }));
-    setNotice("Sparat i din lokala odling.");
-    setForm(null);
+        };
+        break;
+      default:
+        return;
+    }
+    if (await save(mutation)) {
+      setNotice("Sparat i din lokala SQLite-databas.");
+      setForm(null);
+    }
   }
   function exportData() {
     const url = URL.createObjectURL(
@@ -280,7 +249,7 @@ export default function Home() {
     );
     const link = document.createElement("a");
     link.href = url;
-    link.download = "svampodlaren-demo.json";
+    link.download = "svampodlaren-export.json";
     link.click();
     URL.revokeObjectURL(url);
   }
@@ -336,15 +305,13 @@ export default function Home() {
               <select
                 aria-label={"Odlingsfas för " + b.name}
                 value={b.status}
+                disabled={!ready || saving}
                 onChange={(e) =>
-                  setData((d) => ({
-                    ...d,
-                    batches: d.batches.map((item) =>
-                      item.id === b.id
-                        ? { ...item, status: e.target.value as Batch["status"] }
-                        : item,
-                    ),
-                  }))
+                  void save({
+                    kind: "status",
+                    id: b.id,
+                    status: e.target.value as Batch["status"],
+                  })
                 }
               >
                 {["Inokulering", "Inkubation", "Fruktsättning", "Avslutad"].map(
@@ -403,11 +370,11 @@ export default function Home() {
               <Sprout size={17} /> Här börjar din odlingsresa
             </span>
             <p>
-              Utforska med exempeldata.
+              Starta med exempeldata och odla vidare.
               <br />
-              Dina ändringar sparas i webbläsaren.
+              Dina ändringar sparas på den här datorn.
             </p>
-            <span className="demo-pill">DEMOVERSION</span>
+            <span className="demo-pill">LOKAL DATABAS</span>
           </div>
           <div className="profile">
             <span>SO</span>
@@ -432,11 +399,12 @@ export default function Home() {
             <strong>{view}</strong>
           </div>
           <span className="top-demo">
-            <span /> Exempeldata
+            <span /> SQLite · lokalt
           </span>
           <button
             className="icon-button export-button"
             onClick={exportData}
+            disabled={!ready || saving}
             aria-label="Exportera odlingsdata"
             title="Exportera odlingsdata"
           >
@@ -462,7 +430,7 @@ export default function Home() {
               <button
                 className="button primary"
                 onClick={() => open(primary)}
-                disabled={!ready}
+                disabled={!ready || saving}
               >
                 <Plus size={18} />
                 {actionLabel}
@@ -475,11 +443,20 @@ export default function Home() {
               {notice}
             </div>
           )}
-          {storageError && (
-            <p role="alert" className="warning">
-              Webbläsarlagringen är otillgänglig eller kunde inte läsas.
-              Exportera dina data innan du stänger sidan.
+          {!ready && !error && (
+            <p role="status" className="notice">
+              Laddar din lokala odling…
             </p>
+          )}
+          {error && (
+            <div role="alert" className="warning">
+              {error}{" "}
+              {!ready && (
+                <button className="button secondary" onClick={retry}>
+                  Försök igen
+                </button>
+              )}
+            </div>
           )}
           {view === "Översikt" && (
             <>
@@ -836,7 +813,7 @@ export default function Home() {
             </span>
             <span>
               Odlingsglädje, en batch i taget.{" "}
-              <span className="footer-demo">· Exempeldata</span>
+              <span className="footer-demo">· SQLite · utan internet</span>
             </span>
           </footer>
         </main>
@@ -868,103 +845,115 @@ export default function Home() {
                     : "En ny observation"}
             </h2>
             <p className="subtitle">
-              Sparas i den här webbläsaren. Ingen inloggning behövs.
+              Sparas i SQLite på den här datorn. Fungerar utan internet.
             </p>
+            {error && (
+              <p role="alert" className="warning">
+                {error}
+              </p>
+            )}
             <form onSubmit={submit} key={form}>
-              {form === "projekt" && (
-                <>
-                  <Field label="Projektnamn" name="name" autoFocus />
+              <fieldset disabled={saving} className="form-fields">
+                {form === "projekt" && (
+                  <>
+                    <Field label="Projektnamn" name="name" autoFocus />
+                    <label>
+                      Svampart
+                      <select name="species">
+                        {species.map((s) => (
+                          <option key={s.name}>{s.name}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <Field label="Odlingsplats" name="location" />
+                  </>
+                )}
+                {form === "batch" && (
+                  <>
+                    <Field label="Batchnamn" name="name" autoFocus />
+                    <label>
+                      Odlingsprojekt
+                      <select name="projectId" required>
+                        {data.projects.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <Field label="Substrat" name="substrate" />
+                  </>
+                )}
+                {(form === "anteckning" || form === "skörd") && (
                   <label>
-                    Svampart
-                    <select name="species">
-                      {species.map((s) => (
-                        <option key={s.name}>{s.name}</option>
-                      ))}
-                    </select>
-                  </label>
-                  <Field label="Odlingsplats" name="location" />
-                </>
-              )}
-              {form === "batch" && (
-                <>
-                  <Field label="Batchnamn" name="name" autoFocus />
-                  <label>
-                    Odlingsprojekt
-                    <select name="projectId" required>
-                      {data.projects.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.name}
+                    Batch
+                    <select name="batchId" required autoFocus>
+                      {data.batches.map((b) => (
+                        <option key={b.id} value={b.id}>
+                          {b.name} – {projectName(b.projectId)}
                         </option>
                       ))}
                     </select>
                   </label>
-                  <Field label="Substrat" name="substrate" />
-                </>
-              )}
-              {(form === "anteckning" || form === "skörd") && (
-                <label>
-                  Batch
-                  <select name="batchId" required autoFocus>
-                    {data.batches.map((b) => (
-                      <option key={b.id} value={b.id}>
-                        {b.name} – {projectName(b.projectId)}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              )}
-              <Field
-                label="Datum"
-                name="date"
-                type="date"
-                defaultValue={today()}
-              />
-              {form === "anteckning" && (
-                <>
-                  <label>
-                    Vad har du observerat?
-                    <textarea name="text" required maxLength={2000} rows={4} />
-                  </label>
+                )}
+                <Field
+                  label="Datum"
+                  name="date"
+                  type="date"
+                  defaultValue={today()}
+                />
+                {form === "anteckning" && (
+                  <>
+                    <label>
+                      Vad har du observerat?
+                      <textarea
+                        name="text"
+                        required
+                        maxLength={2000}
+                        rows={4}
+                      />
+                    </label>
+                    <div className="form-row">
+                      <Field
+                        label="Temperatur (°C)"
+                        name="temperature"
+                        type="number"
+                        min={-20}
+                        max={60}
+                        step="0.1"
+                        defaultValue="20"
+                      />
+                      <Field
+                        label="Luftfuktighet (%)"
+                        name="humidity"
+                        type="number"
+                        min={0}
+                        max={100}
+                        defaultValue="85"
+                      />
+                    </div>
+                  </>
+                )}
+                {form === "skörd" && (
                   <div className="form-row">
                     <Field
-                      label="Temperatur (°C)"
-                      name="temperature"
+                      label="Vikt (gram)"
+                      name="weight"
                       type="number"
-                      min={-20}
-                      max={60}
-                      step="0.1"
-                      defaultValue="20"
+                      min={1}
+                      max={1000000}
                     />
                     <Field
-                      label="Luftfuktighet (%)"
-                      name="humidity"
+                      label="Skördevåg"
+                      name="flush"
                       type="number"
-                      min={0}
+                      min={1}
                       max={100}
-                      defaultValue="85"
+                      defaultValue="1"
                     />
                   </div>
-                </>
-              )}
-              {form === "skörd" && (
-                <div className="form-row">
-                  <Field
-                    label="Vikt (gram)"
-                    name="weight"
-                    type="number"
-                    min={1}
-                    max={1000000}
-                  />
-                  <Field
-                    label="Skördevåg"
-                    name="flush"
-                    type="number"
-                    min={1}
-                    max={100}
-                    defaultValue="1"
-                  />
-                </div>
-              )}
+                )}
+              </fieldset>
               <div className="modal-actions">
                 <button
                   type="button"
@@ -973,7 +962,11 @@ export default function Home() {
                 >
                   Avbryt
                 </button>
-                <button className="button primary" type="submit">
+                <button
+                  className="button primary"
+                  type="submit"
+                  disabled={saving}
+                >
                   <Check size={17} />
                   Spara {form}
                 </button>
