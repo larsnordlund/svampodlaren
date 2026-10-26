@@ -4,6 +4,7 @@ import type { Data } from "./data";
 import type { Mutation } from "./validation";
 
 const emptyData: Data = {
+  customSpecies: [],
   projects: [],
   batches: [],
   entries: [],

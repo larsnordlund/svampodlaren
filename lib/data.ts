@@ -28,13 +28,23 @@ export type Harvest = {
   weight: number;
   flush: number;
 };
+export type CustomSpecies = {
+  id: string;
+  name: string;
+  latin: string;
+  description: string;
+  guide: string;
+  url: string;
+};
 export type Data = {
+  customSpecies: CustomSpecies[];
   projects: Project[];
   batches: Batch[];
   entries: Entry[];
   harvests: Harvest[];
 };
 export const seed: Data = {
+  customSpecies: [],
   projects: [
     {
       id: "p1",

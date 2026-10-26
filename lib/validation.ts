@@ -1,4 +1,11 @@
-import type { Batch, Entry, Harvest, Project } from "./data.ts";
+import {
+  species,
+  type CustomSpecies,
+  type Batch,
+  type Entry,
+  type Harvest,
+  type Project,
+} from "./data.ts";
 
 export class InputError extends Error {
   status: number;
@@ -8,6 +15,7 @@ export class InputError extends Error {
   }
 }
 export type Mutation =
+  | { kind: "svamp"; record: CustomSpecies }
   | { kind: "projekt"; record: Project }
   | { kind: "batch"; record: Batch }
   | { kind: "anteckning"; record: Entry }
@@ -69,11 +77,57 @@ function date(value: unknown) {
     throw new InputError("Ange ett giltigt datum.");
   return value;
 }
+function optionalText(value: unknown, label: string, max: number) {
+  if (value === undefined || value === "") return "";
+  if (typeof value !== "string" || value.trim().length > max)
+    throw new InputError(`${label} får innehålla högst ${max} tecken.`);
+  return value.trim();
+}
+export function speciesNameKey(name: string) {
+  return name.trim().normalize("NFC").toLocaleLowerCase("sv-SE");
+}
+function sourceUrl(value: unknown) {
+  const result = optionalText(value, "Källänk", 2048);
+  if (!result) return "";
+  try {
+    const url = new URL(result);
+    if (
+      !["http:", "https:"].includes(url.protocol) ||
+      url.username ||
+      url.password
+    )
+      throw Error();
+  } catch {
+    throw new InputError(
+      "Källänken måste vara en fullständig http- eller https-adress.",
+    );
+  }
+  return result;
+}
 export function parseMutation(input: unknown): Mutation {
   const body = object(input);
   if (body.kind === "status")
     return { kind: "status", id: id(body.id), status: status(body.status) };
   const r = object(body.record);
+  if (body.kind === "svamp") {
+    const name = text(r.name, "Svampnamn");
+    if (species.some((s) => speciesNameKey(s.name) === speciesNameKey(name)))
+      throw new InputError(
+        "Svampen finns redan i det inbyggda biblioteket.",
+        409,
+      );
+    return {
+      kind: "svamp",
+      record: {
+        id: id(r.id),
+        name,
+        latin: optionalText(r.latin, "Vetenskapligt namn", 160),
+        description: optionalText(r.description, "Beskrivning", 1000),
+        guide: optionalText(r.guide, "Odlingsråd", 4000),
+        url: sourceUrl(r.url),
+      },
+    };
+  }
   const base = { id: id(r.id), date: date(r.date) };
   switch (body.kind) {
     case "projekt":

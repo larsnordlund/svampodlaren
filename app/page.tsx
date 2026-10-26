@@ -19,7 +19,7 @@ import {
   Wheat,
   X,
 } from "lucide-react";
-import { species, type Batch } from "@/lib/data";
+import { species as builtInSpecies, type Batch } from "@/lib/data";
 import { useCultivation } from "@/lib/use-cultivation";
 import type { Mutation } from "@/lib/validation";
 
@@ -32,7 +32,7 @@ const navigation = [
   { name: "Svampbibliotek", icon: Mushroom },
 ];
 type View = (typeof navigation)[number]["name"];
-type FormKind = "projekt" | "batch" | "anteckning" | "skörd";
+type FormKind = "projekt" | "batch" | "anteckning" | "skörd" | "svamp";
 const titles: Record<View, string> = {
   Översikt: "Här växer något fint.",
   Odlingsprojekt: "Från idé till odling.",
@@ -113,6 +113,14 @@ function MushroomArt({ variant = 0 }: { variant?: number }) {
 export default function Home() {
   const [view, setView] = useState<View>("Översikt");
   const { data, ready, saving, error, save, retry } = useCultivation();
+  const species = [
+    ...builtInSpecies,
+    ...data.customSpecies.map((s) => ({
+      ...s,
+      tag: "Egen svamp",
+      color: "sage",
+    })),
+  ];
   const [menu, setMenu] = useState(false);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("Alla");
@@ -189,6 +197,19 @@ export default function Home() {
     const base = { id: crypto.randomUUID(), date: value("date") || today() };
     let mutation: Mutation;
     switch (form) {
+      case "svamp":
+        mutation = {
+          kind: form,
+          record: {
+            id: base.id,
+            name: value("name"),
+            latin: value("latin"),
+            description: value("description"),
+            guide: value("guide"),
+            url: value("url"),
+          },
+        };
+        break;
       case "projekt":
         mutation = {
           kind: form,
@@ -240,6 +261,7 @@ export default function Home() {
     }
     if (await save(mutation)) {
       setNotice("Sparat i din lokala SQLite-databas.");
+      if (form === "svamp") setQuery("");
       setForm(null);
     }
   }
@@ -254,21 +276,25 @@ export default function Home() {
     URL.revokeObjectURL(url);
   }
   const primary: FormKind =
-    view === "Odlingsprojekt"
-      ? "projekt"
-      : view === "Batchregister"
-        ? "batch"
-        : view === "Skördar"
-          ? "skörd"
-          : "anteckning";
+    view === "Svampbibliotek"
+      ? "svamp"
+      : view === "Odlingsprojekt"
+        ? "projekt"
+        : view === "Batchregister"
+          ? "batch"
+          : view === "Skördar"
+            ? "skörd"
+            : "anteckning";
   const actionLabel =
-    primary === "projekt"
-      ? "Nytt projekt"
-      : primary === "batch"
-        ? "Ny batch"
-        : primary === "skörd"
-          ? "Registrera skörd"
-          : "Ny anteckning";
+    primary === "svamp"
+      ? "Lägg till svamp"
+      : primary === "projekt"
+        ? "Nytt projekt"
+        : primary === "batch"
+          ? "Ny batch"
+          : primary === "skörd"
+            ? "Registrera skörd"
+            : "Ny anteckning";
   const batchCards = (limit?: number) =>
     data.batches
       .filter(
@@ -426,7 +452,7 @@ export default function Home() {
                   : "Samla kunskap, följ utvecklingen och ge varje odling rätt förutsättningar."}
               </p>
             </div>
-            {view !== "Svampbibliotek" && (
+            {
               <button
                 className="button primary"
                 onClick={() => open(primary)}
@@ -435,7 +461,7 @@ export default function Home() {
                 <Plus size={18} />
                 {actionLabel}
               </button>
-            )}
+            }
           </div>
           {notice && (
             <div role="status" className="notice">
@@ -836,13 +862,15 @@ export default function Home() {
             </button>
             <p className="eyebrow">DIN LOKALA ODLING</p>
             <h2 id="form-title">
-              {form === "projekt"
-                ? "Nytt odlingsprojekt"
-                : form === "batch"
-                  ? "Lägg till en batch"
-                  : form === "skörd"
-                    ? "Registrera en skörd"
-                    : "En ny observation"}
+              {form === "svamp"
+                ? "Lägg till egen svamp"
+                : form === "projekt"
+                  ? "Nytt odlingsprojekt"
+                  : form === "batch"
+                    ? "Lägg till en batch"
+                    : form === "skörd"
+                      ? "Registrera en skörd"
+                      : "En ny observation"}
             </h2>
             <p className="subtitle">
               Sparas i SQLite på den här datorn. Fungerar utan internet.
@@ -854,6 +882,33 @@ export default function Home() {
             )}
             <form onSubmit={submit} key={form}>
               <fieldset disabled={saving} className="form-fields">
+                {form === "svamp" && (
+                  <>
+                    <Field label="Svampnamn" name="name" autoFocus />
+                    <Field
+                      label="Vetenskapligt namn (valfritt)"
+                      name="latin"
+                      maxLength={160}
+                      required={false}
+                    />
+                    <label>
+                      Beskrivning (valfritt)
+                      <textarea name="description" rows={3} maxLength={1000} />
+                    </label>
+                    <label>
+                      Odlingsråd (valfritt)
+                      <textarea name="guide" rows={5} maxLength={4000} />
+                    </label>
+                    <Field
+                      label="Källänk (valfritt)"
+                      name="url"
+                      type="url"
+                      placeholder="https://…"
+                      maxLength={2048}
+                      required={false}
+                    />
+                  </>
+                )}
                 {form === "projekt" && (
                   <>
                     <Field label="Projektnamn" name="name" autoFocus />
@@ -896,12 +951,14 @@ export default function Home() {
                     </select>
                   </label>
                 )}
-                <Field
-                  label="Datum"
-                  name="date"
-                  type="date"
-                  defaultValue={today()}
-                />
+                {form !== "svamp" && (
+                  <Field
+                    label="Datum"
+                    name="date"
+                    type="date"
+                    defaultValue={today()}
+                  />
+                )}
                 {form === "anteckning" && (
                   <>
                     <label>
@@ -995,19 +1052,29 @@ export default function Home() {
             <div className="guide-art">
               <MushroomArt variant={guide % 2} />
             </div>
-            <p className="eyebrow">ODLINGSGUIDE · INTRODUKTION</p>
+            <p className="eyebrow">
+              {guide < builtInSpecies.length
+                ? "ODLINGSGUIDE · INTRODUKTION"
+                : "EGEN SVAMP · MINA UPPGIFTER"}
+            </p>
             <h2 id="guide-title">{species[guide].name}</h2>
             <em>{species[guide].latin}</em>
-            <p className="guide-copy">{species[guide].description}</p>
-            <p className="guide-copy">{species[guide].guide}</p>
-            <a
-              className="text-link"
-              href={species[guide].url}
-              target="_blank"
-              rel="noreferrer"
-            >
-              Källa och vidare läsning <ArrowUpRight size={17} />
-            </a>
+            <p className="guide-copy">
+              {species[guide].description || "Ingen beskrivning angiven."}
+            </p>
+            <p className="guide-copy">
+              {species[guide].guide || "Inga odlingsråd angivna."}
+            </p>
+            {species[guide].url && (
+              <a
+                className="text-link"
+                href={species[guide].url}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Källa och vidare läsning <ArrowUpRight size={17} />
+              </a>
+            )}
           </section>
         </div>
       )}

@@ -1400,3 +1400,12 @@ td small {
   border: 0;
   min-width: 0;
 }
+
+.guide-copy {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.species-card h2,
+.modal h2 {
+  overflow-wrap: anywhere;
+}

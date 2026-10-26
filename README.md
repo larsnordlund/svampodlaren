@@ -23,7 +23,7 @@ För utveckling: `pnpm dev`.
 - Batchregister med projektkoppling, unika batchnamn, substrat, fasfilter och ändringsbar odlingsfas.
 - Odlingsdagbok med observation, datum, temperatur och luftfuktighet.
 - Skörderegistrering med batch, datum, vikt i gram och skördevåg.
-- Svampbibliotek med nio introduktionsguider och källhänvisningar.
+- Svampbibliotek med nio inbyggda introduktionsguider och källhänvisningar. Lägg till egna svampar med namn, vetenskapligt namn, beskrivning, odlingsråd och valfri källänk. Egna svampar sparas i SQLite, kan sökas fram och kan väljas i nya odlingsprojekt.
 - Sökning och JSON-export via knappen i sidhuvudet.
 
 Bibliotekets inbyggda texter och illustrationer fungerar offline. Länkar till externa källor kräver internet.
@@ -31,6 +31,8 @@ Bibliotekets inbyggda texter och illustrationer fungerar offline. Länkar till e
 ## Lokal databas och exempeldata
 
 Appen skapar automatiskt **`data/svampodlaren.sqlite`** vid första användningen. Då läggs exempelprojekt, batcher, observationer och skördar in en gång. Därefter sparas alla ändringar permanent i SQLite. Exempeldata läggs inte tillbaka vid omstart.
+
+Befintliga databaser uppgraderas automatiskt till schemaversion 2, som lägger till tabellen `custom_species` utan att ändra tidigare odlingsposter.
 
 Webbläsaren hämtar och sparar uppgifter via appens lokala `/api/data`. SQLite körs i Node.js-processen på samma dator; filen skickas inte till någon extern tjänst. Databasen behöver vara skrivbar. Ett misslyckat sparande visas som ett fel och formulärets innehåll finns kvar.
 

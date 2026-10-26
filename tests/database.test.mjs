@@ -8,7 +8,13 @@ import { seed } from "../lib/data.ts";
 import { parseMutation } from "../lib/validation.ts";
 import { allowedLocalRequest } from "../lib/local-request.ts";
 
-const blank = { projects: [], batches: [], entries: [], harvests: [] };
+const blank = {
+  customSpecies: [],
+  projects: [],
+  batches: [],
+  entries: [],
+  harvests: [],
+};
 const project = {
   kind: "projekt",
   record: {
@@ -210,5 +216,85 @@ test("lokala API:t nekar främmande värdar och skrivningar från andra webbplat
   assert.equal(
     allowedLocalRequest(request("127.0.0.1:3000", null, "cross-site")),
     false,
+  );
+});
+
+test("egen svamp sparas över omstart och exporteras tillsammans med odlingen", () => {
+  const directory = mkdtempSync(join(tmpdir(), "svampodlaren-species-"));
+  const filename = join(directory, "cultivation.sqlite");
+  let db = openDatabase(filename, blank);
+  const record = {
+    id: "custom1",
+    name: "Min provsvamp",
+    latin: "Exemplum testii",
+    description: "Mina anteckningar",
+    guide: "Rad ett\nRad två",
+    url: "https://example.com/guide",
+  };
+  try {
+    mutate(db, { kind: "svamp", record });
+    assert.throws(
+      () =>
+        mutate(db, {
+          kind: "svamp",
+          record: { ...record, id: "custom2", name: "  MIN PROVSVAMP  " },
+        }),
+      /redan en egen svamp/,
+    );
+    db.close();
+    db = openDatabase(filename);
+    assert.deepEqual(
+      readData(db).customSpecies.map((row) => ({ ...row })),
+      [record],
+    );
+    mutate(db, {
+      ...project,
+      record: { ...project.record, species: record.name },
+    });
+    assert.equal(readData(db).projects[0].species, record.name);
+  } finally {
+    db.close();
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("migration från schema 1 bevarar befintliga odlingsdata", () => {
+  const directory = mkdtempSync(join(tmpdir(), "svampodlaren-migrate-"));
+  const filename = join(directory, "cultivation.sqlite");
+  let db = openDatabase(filename);
+  try {
+    const previous = readData(db);
+    db.exec("DROP TABLE custom_species; PRAGMA user_version = 1;");
+    db.close();
+    db = openDatabase(filename);
+    assert.deepEqual(readData(db), previous);
+    assert.equal(db.prepare("PRAGMA user_version").get().user_version, 2);
+  } finally {
+    db.close();
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("egna svampar kräver namn, nekar inbyggda dubbletter och farliga länkar", () => {
+  const record = { id: "custom1", name: "Egen svamp" };
+  assert.equal(parseMutation({ kind: "svamp", record }).record.url, "");
+  for (const name of ["", "  ", "  SHIITAKE "])
+    assert.throws(() =>
+      parseMutation({ kind: "svamp", record: { ...record, name } }),
+    );
+  for (const url of [
+    "javascript:alert(1)",
+    "data:text/html,hej",
+    "file:///etc/passwd",
+    "https://user:password@example.com",
+  ])
+    assert.throws(() =>
+      parseMutation({ kind: "svamp", record: { ...record, url } }),
+    );
+  assert.throws(() =>
+    parseMutation({
+      kind: "svamp",
+      record: { ...record, guide: "a".repeat(4001) },
+    }),
   );
 });

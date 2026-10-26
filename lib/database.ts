@@ -2,7 +2,7 @@ import { DatabaseSync } from "node:sqlite";
 import { mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { seed, type Data } from "./data.ts";
-import { InputError, parseMutation } from "./validation.ts";
+import { InputError, parseMutation, speciesNameKey } from "./validation.ts";
 
 export function openDatabase(filename: string, initialData: Data = seed) {
   if (filename !== ":memory:")
@@ -12,7 +12,7 @@ export function openDatabase(filename: string, initialData: Data = seed) {
     "PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000; PRAGMA journal_mode = WAL;",
   );
   const version = Number(db.prepare("PRAGMA user_version").get()?.user_version);
-  if (version > 1) {
+  if (version > 2) {
     db.close();
     throw new Error(
       "Databasen är skapad med en nyare version av Svampodlaren.",
@@ -63,6 +63,27 @@ export function openDatabase(filename: string, initialData: Data = seed) {
       throw error;
     }
   }
+  if (Number(db.prepare("PRAGMA user_version").get()?.user_version) < 2) {
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      if (Number(db.prepare("PRAGMA user_version").get()?.user_version) < 2) {
+        db.exec(`CREATE TABLE custom_species (
+          id TEXT PRIMARY KEY NOT NULL,
+          name TEXT NOT NULL CHECK(length(trim(name)) BETWEEN 1 AND 120),
+          name_key TEXT NOT NULL UNIQUE,
+          latin TEXT NOT NULL DEFAULT '' CHECK(length(latin) <= 160),
+          description TEXT NOT NULL DEFAULT '' CHECK(length(description) <= 1000),
+          guide TEXT NOT NULL DEFAULT '' CHECK(length(guide) <= 4000),
+          url TEXT NOT NULL DEFAULT '' CHECK(length(url) <= 2048)
+        ) STRICT; PRAGMA user_version = 2;`);
+      }
+      db.exec("COMMIT");
+    } catch (error) {
+      db.exec("ROLLBACK");
+      db.close();
+      throw error;
+    }
+  }
   return db;
 }
 export function readData(db: DatabaseSync): Data {
@@ -70,6 +91,11 @@ export function readData(db: DatabaseSync): Data {
   db.exec("BEGIN");
   try {
     const data = {
+      customSpecies: db
+        .prepare(
+          "SELECT id,name,latin,description,guide,url FROM custom_species ORDER BY rowid",
+        )
+        .all(),
       projects: db.prepare("SELECT * FROM projects ORDER BY rowid").all(),
       batches: db.prepare("SELECT * FROM batches ORDER BY rowid").all(),
       entries: db
@@ -88,6 +114,21 @@ export function mutate(db: DatabaseSync, input: unknown) {
   const mutation = parseMutation(input);
   try {
     switch (mutation.kind) {
+      case "svamp": {
+        const r = mutation.record;
+        db.prepare(
+          "INSERT INTO custom_species(id,name,name_key,latin,description,guide,url) VALUES(?,?,?,?,?,?,?)",
+        ).run(
+          r.id,
+          r.name,
+          speciesNameKey(r.name),
+          r.latin,
+          r.description,
+          r.guide,
+          r.url,
+        );
+        break;
+      }
       case "projekt": {
         const r = mutation.record;
         db.prepare(
@@ -129,6 +170,15 @@ export function mutate(db: DatabaseSync, input: unknown) {
       }
     }
   } catch (error) {
+    if (
+      error instanceof Error &&
+      /UNIQUE constraint/.test(error.message) &&
+      mutation.kind === "svamp"
+    )
+      throw new InputError(
+        "Det finns redan en egen svamp med det namnet. Välj ett annat namn.",
+        409,
+      );
     if (error instanceof Error && /UNIQUE constraint/.test(error.message))
       throw new InputError(
         "Postens ID eller batchnamn finns redan. Välj ett unikt batchnamn eller ladda om sidan.",
