@@ -785,7 +785,7 @@ export default function Home() {
                   (s, i) =>
                     match(s.name, s.latin) && (
                       <article className="species-card" key={s.name}>
-                        <div className={"species-art art-" + i}>
+                        <div className={"species-art art-" + (i % 3)}>
                           <MushroomArt variant={i % 2} />
                           <span className="badge">{s.tag}</span>
                         </div>

@@ -149,4 +149,70 @@ export const species = [
       "Dokumentera form och färg på fruktkropparna. Anpassa miljön efter leverantörens odlingsguide och den aktuella stammen.",
     url: "https://smallfarms.cornell.edu/projects/mushrooms/",
   },
+  {
+    name: "Kungsmussling",
+    latin: "Pleurotus eryngii",
+    tag: "Odla på block",
+    color: "sand",
+    description:
+      "En odlingssvamp som ofta säljs som king oyster. Färdiga odlingsblock är ett enkelt sätt att prova arten inomhus.",
+    guide:
+      "Börja gärna med ett koloniserat block avsett för kungsmussling. Följ leverantörens anvisningar för öppning och fruktsättning. Anteckna luftväxling, fukt och fruktkropparnas utveckling för varje batch.",
+    url: "https://fieldforest.net/resources/instruction-sheets/",
+  },
+  {
+    name: "Jättekragskivling",
+    latin: "Stropharia rugoso-annulata",
+    tag: "För trädgårdsbädden",
+    color: "clay",
+    description:
+      "Även kallad wine cap. Kan odlas utomhus i bäddar med lövträflis och passar en odling som följer årstiderna.",
+    guide:
+      "Välj en skuggig plats och anlägg en flisbädd enligt mycelleverantörens instruktioner. Håll bädden fuktig och dokumentera nederbörd, uttorkning och när fruktkropparna visar sig.",
+    url: "https://smallfarms.cornell.edu/resources/outdoor-production/",
+  },
+  {
+    name: "Nameko",
+    latin: "Pholiota nameko",
+    tag: "Prova stockodling",
+    color: "clay",
+    description:
+      "En vedlevande odlingssvamp med bruna hattar. Stockodling på lämpligt lövträ är en av de dokumenterade metoderna.",
+    guide:
+      "Använd träslag och stockdimensioner som rekommenderas för den aktuella stammen. Märk stockarna med inokuleringsdatum och håll dem skyddade från uttorkning. Följ kolonisering och skördar i dagboken.",
+    url: "https://smallfarms.cornell.edu/resources/outdoor-production/",
+  },
+  {
+    name: "Pioppino",
+    latin: "Agrocybe aegerita",
+    tag: "Ett nytt blockförsök",
+    color: "sage",
+    description:
+      "En odlad svamp som även kallas pioppini. Finns som färdigkoloniserade block för fruktsättning inomhus.",
+    guide:
+      "Utgå från ett färdigt block och följ den medföljande guiden för pioppino. Registrera startdatum och förändringar i odlingsmiljön. Jämför sedan fruktsättning och skördemängd mellan batcherna.",
+    url: "https://fieldforest.net/resources/instruction-sheets/",
+  },
+  {
+    name: "Maitake (korallticka)",
+    latin: "Grifola frondosa",
+    tag: "För nästa odlingssteg",
+    color: "sage",
+    description:
+      "En art som kan odlas på stockar utomhus eller på sågspånsbaserade block inomhus. Kallas också hen of the woods.",
+    guide:
+      "Välj en stam och metod som passar din odlingsplats. Följ en artspecifik guide för stock eller block och dokumentera kolonisering, viloperioder och fruktsättning. Jämför inte tidsåtgången direkt med snabbare ostronskivlingar.",
+    url: "https://namyco.org/interests/cultivation/commonly-cultivated-mushroom-species/",
+  },
+  {
+    name: "Champinjon",
+    latin: "Agaricus bisporus",
+    tag: "Odla på kompost",
+    color: "sand",
+    description:
+      "En klassisk odlingssvamp som odlas i särskilt förberett kompostsubstrat med ett täcklager, i stället för på träblock.",
+    guide:
+      "Börja gärna med en odlingssats med färdigbehandlat substrat och rätt täckmaterial. Följ satsens instruktioner för kolonisering och täckning. Anteckna bevattning och skördevågor för att följa odlingens utveckling.",
+    url: "https://extension.psu.edu/basic-procedures-for-agaricus-mushroom-growing",
+  },
 ];

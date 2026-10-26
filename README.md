@@ -23,7 +23,7 @@ För utveckling: `pnpm dev`.
 - Batchregister med projektkoppling, unika batchnamn, substrat, fasfilter och ändringsbar odlingsfas.
 - Odlingsdagbok med observation, datum, temperatur och luftfuktighet.
 - Skörderegistrering med batch, datum, vikt i gram och skördevåg.
-- Svampbibliotek med tre introduktionsguider och källhänvisningar.
+- Svampbibliotek med nio introduktionsguider och källhänvisningar.
 - Sökning och JSON-export via knappen i sidhuvudet.
 
 Bibliotekets inbyggda texter och illustrationer fungerar offline. Länkar till externa källor kräver internet.
