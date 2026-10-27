@@ -186,19 +186,24 @@ export function requireUser(db: DatabaseSync, request: Request) {
   if (!user) throw new InputError("Logga in för att fortsätta.", 401);
   return user;
 }
-export function ownedData(db: DatabaseSync, user: User) {
+export function ownedData(db: DatabaseSync, _user: User) {
   const data = readData(db);
-  if (user.role === "admin") return data;
-  const ids = new Set(
+  const ownership = new Map(
     db
-      .prepare("SELECT recordId FROM record_owners WHERE userId=?")
-      .all(user.id)
-      .map((r) => r.recordId),
+      .prepare(
+        "SELECT o.recordId,o.userId,u.name FROM record_owners o JOIN users u ON u.id=o.userId",
+      )
+      .all()
+      .map((row) => [row.recordId, row]),
   );
   return Object.fromEntries(
-    Object.entries(data).map(([k, rows]) => [
-      k,
-      rows.filter((r: { id: string }) => ids.has(r.id)),
+    Object.entries(data).map(([key, rows]) => [
+      key,
+      rows.map((row) => ({
+        ...row,
+        ownerId: ownership.get(row.id)?.userId,
+        ownerName: ownership.get(row.id)?.name,
+      })),
     ]),
   );
 }
@@ -209,11 +214,17 @@ export function ownedMutation(db: DatabaseSync, user: User, input: unknown) {
   const m = parseMutation(body);
   const creation = "record" in m;
   const edit = body.edit === true;
-  if ((!creation || edit) && user.role !== "admin")
-    throw new InputError(
-      "Endast administratörer får ändra eller radera poster.",
-      403,
-    );
+  if ((!creation || edit) && user.role !== "admin") {
+    const id = "record" in m ? m.record.id : m.id;
+    if (
+      db.prepare("SELECT userId FROM record_owners WHERE recordId=?").get(id)
+        ?.userId !== user.id
+    )
+      throw new InputError(
+        "Du får bara ändra eller radera dina egna poster.",
+        403,
+      );
+  }
   let owner = user.id;
   if (creation) {
     const kind = m.kind as RecordKind,

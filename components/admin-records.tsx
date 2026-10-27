@@ -59,6 +59,7 @@ const labels: Record<string, string> = {
 };
 type Row = Record<string, string | number> & { id: string };
 export function AdminRecords({ currentUser }: { currentUser: User }) {
+  const isAdmin = currentUser.role === "admin";
   const [data, setData] = useState<Record<string, Row[]>>({}),
     [users, setUsers] = useState<User[]>([]),
     [owners, setOwners] = useState<Record<string, string>>({}),
@@ -78,14 +79,28 @@ export function AdminRecords({ currentUser }: { currentUser: User }) {
     const [d, b] = await Promise.all([r.json(), a.json()]);
     if (!r.ok || !a.ok) throw Error(d.error || b.error);
     setData(d);
-    setUsers(b.users);
+    const rows = Object.values(d).flat() as Row[];
+    setUsers(
+      isAdmin
+        ? b.users
+        : (Array.from(
+            new Map(
+              rows.map((row) => [
+                String(row.ownerId),
+                {
+                  id: String(row.ownerId),
+                  name: String(row.ownerName || "Okänd användare"),
+                  username: "",
+                  role: "user",
+                },
+              ]),
+            ).values(),
+          ) as User[]),
+    );
+    if (!isAdmin && !rows.some((row) => row.ownerId === currentUser.id))
+      setUsers((previous) => [currentUser, ...previous]);
     setOwners(
-      Object.fromEntries(
-        b.owners.map((o: { recordId: string; userId: string }) => [
-          o.recordId,
-          o.userId,
-        ]),
-      ),
+      Object.fromEntries(rows.map((row) => [row.id, String(row.ownerId)])),
     );
   }
   useEffect(() => {
@@ -118,7 +133,9 @@ export function AdminRecords({ currentUser }: { currentUser: User }) {
       setNotice(
         record
           ? "Ändringarna har sparats."
-          : "Posten har skapats för vald användare.",
+          : isAdmin
+            ? "Posten har skapats för vald användare."
+            : "Din post har skapats.",
       );
     } catch (e) {
       setError(e instanceof Error ? e.message : "Kunde inte spara.");
@@ -129,12 +146,16 @@ export function AdminRecords({ currentUser }: { currentUser: User }) {
   const spec = registers[kind];
   return (
     <main className="admin-page">
-      <p className="eyebrow">ADMINISTRATION</p>
-      <h1>Register & användare</h1>
+      <p className="eyebrow">
+        {isAdmin ? "ADMINISTRATION" : "GEMENSAMMA REGISTER"}
+      </p>
+      <h1>
+        {isAdmin ? "Register & användare" : "Alla poster · ändra dina egna"}
+      </h1>
       <p>
-        Ändra alla uppgifter i registren eller skapa poster åt en annan
-        användare. Välj samma användare för projekt, batch och tillhörande
-        anteckningar eller skördar.
+        {isAdmin
+          ? "Ändra uppgifter i alla register eller skapa poster åt en vald användare."
+          : "Här ser du allas poster. Du kan skapa, ändra och radera dina egna. Andras poster är skrivskyddade."}
       </p>
       {error && (
         <p role="alert" className="admin-message">
@@ -171,7 +192,8 @@ export function AdminRecords({ currentUser }: { currentUser: User }) {
             <option value="">Alla användare</option>
             {users.map((u) => (
               <option key={u.id} value={u.id}>
-                {u.name} ({u.username})
+                {u.name}
+                {u.username ? ` (${u.username})` : ""}
               </option>
             ))}
           </select>
@@ -181,13 +203,13 @@ export function AdminRecords({ currentUser }: { currentUser: User }) {
           disabled={busy}
           onClick={() => {
             setRecord(null);
-            setOwner(filter || currentUser.id);
+            setOwner(isAdmin ? filter || currentUser.id : currentUser.id);
             setEditor(true);
             setError("");
             setNotice("");
           }}
         >
-          Skapa post för användare
+          {isAdmin ? "Skapa post för användare" : "Skapa egen post"}
         </button>
       </div>
       {editor && (
@@ -197,12 +219,13 @@ export function AdminRecords({ currentUser }: { currentUser: User }) {
             Postens användare
             <select
               value={owner}
-              disabled={!!record || busy}
+              disabled={!isAdmin || !!record || busy}
               onChange={(e) => setOwner(e.target.value)}
             >
               {users.map((u) => (
                 <option key={u.id} value={u.id}>
-                  {u.name} ({u.username})
+                  {u.name}
+                  {u.username ? ` (${u.username})` : ""}
                 </option>
               ))}
             </select>
@@ -343,105 +366,112 @@ export function AdminRecords({ currentUser }: { currentUser: User }) {
                     "Okänd användare"}
                 </p>
               </div>
-              <button
-                className="button secondary"
-                disabled={busy}
-                onClick={() => {
-                  setRecord(r);
-                  setOwner(owners[r.id]);
-                  setEditor(true);
-                  setError("");
-                  setNotice("");
-                  window.scrollTo({ top: 0, behavior: "smooth" });
-                }}
-              >
-                Ändra
-              </button>
+              {isAdmin || owners[r.id] === currentUser.id ? (
+                <button
+                  className="button secondary"
+                  disabled={busy}
+                  onClick={() => {
+                    setRecord(r);
+                    setOwner(owners[r.id]);
+                    setEditor(true);
+                    setError("");
+                    setNotice("");
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  }}
+                >
+                  Ändra
+                </button>
+              ) : (
+                <span>Endast visning</span>
+              )}
             </article>
           ))}
         {!(data[spec.key] || []).some(
           (r) => !filter || owners[r.id] === filter,
         ) && <p>Inga poster för detta urval.</p>}
       </section>
-      <section className="admin-editor">
-        <h2>Användarkonton</h2>
-        <p>
-          Kontona lagras lokalt. Endast administratörer kan skapa nya användare.
-        </p>
-        <ul>
-          {users.map((u) => (
-            <li key={u.id}>
-              {u.name} · {u.username} ·{" "}
-              {u.role === "admin" ? "Administratör" : "Användare"}
-            </li>
-          ))}
-        </ul>
-        <form
-          onSubmit={async (e) => {
-            e.preventDefault();
-            const f = e.currentTarget;
-            setBusy(true);
-            setError("");
-            try {
-              const r = await fetch("/api/auth", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  action: "create-user",
-                  ...Object.fromEntries(new FormData(f)),
-                }),
-              });
-              const b = await r.json();
-              if (!r.ok) throw Error(b.error);
-              await load();
-              f.reset();
-              setNotice("Användarkontot har skapats.");
-            } catch (e) {
-              setError(
-                e instanceof Error ? e.message : "Kunde inte skapa konto.",
-              );
-            } finally {
-              setBusy(false);
-            }
-          }}
-        >
-          <fieldset disabled={busy}>
-            <label>
-              Namn
-              <input name="name" required maxLength={120} />
-            </label>
-            <label>
-              Användarnamn
-              <input
-                name="username"
-                required
-                minLength={3}
-                maxLength={64}
-                autoComplete="off"
-              />
-            </label>
-            <label>
-              Lösenord (minst 12 tecken)
-              <input
-                name="password"
-                type="password"
-                required
-                minLength={12}
-                maxLength={256}
-                autoComplete="new-password"
-              />
-            </label>
-            <label>
-              Behörighet
-              <select name="role">
-                <option value="user">Användare</option>
-                <option value="admin">Administratör</option>
-              </select>
-            </label>
-            <button className="button primary">Skapa användare</button>
-          </fieldset>
-        </form>
-      </section>
+      {isAdmin && (
+        <section className="admin-editor">
+          <h2>Användarkonton</h2>
+          <p>
+            Kontona lagras lokalt. Endast administratörer kan skapa nya
+            användare.
+          </p>
+          <ul>
+            {users.map((u) => (
+              <li key={u.id}>
+                {u.name} · {u.username} ·{" "}
+                {u.role === "admin" ? "Administratör" : "Användare"}
+              </li>
+            ))}
+          </ul>
+          <form
+            onSubmit={async (e) => {
+              e.preventDefault();
+              const f = e.currentTarget;
+              setBusy(true);
+              setError("");
+              try {
+                const r = await fetch("/api/auth", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    action: "create-user",
+                    ...Object.fromEntries(new FormData(f)),
+                  }),
+                });
+                const b = await r.json();
+                if (!r.ok) throw Error(b.error);
+                await load();
+                f.reset();
+                setNotice("Användarkontot har skapats.");
+              } catch (e) {
+                setError(
+                  e instanceof Error ? e.message : "Kunde inte skapa konto.",
+                );
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
+            <fieldset disabled={busy}>
+              <label>
+                Namn
+                <input name="name" required maxLength={120} />
+              </label>
+              <label>
+                Användarnamn
+                <input
+                  name="username"
+                  required
+                  minLength={3}
+                  maxLength={64}
+                  autoComplete="off"
+                />
+              </label>
+              <label>
+                Lösenord (minst 12 tecken)
+                <input
+                  name="password"
+                  type="password"
+                  required
+                  minLength={12}
+                  maxLength={256}
+                  autoComplete="new-password"
+                />
+              </label>
+              <label>
+                Behörighet
+                <select name="role">
+                  <option value="user">Användare</option>
+                  <option value="admin">Administratör</option>
+                </select>
+              </label>
+              <button className="button primary">Skapa användare</button>
+            </fieldset>
+          </form>
+        </section>
+      )}
       <p>
         De förinstallerade svamparterna är ett gemensamt referensbibliotek. Egna
         svampar redigeras i registret ovan.

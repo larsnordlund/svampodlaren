@@ -1,11 +1,12 @@
-export type Project = {
+export type Ownership = { ownerId?: string; ownerName?: string };
+export type Project = Ownership & {
   id: string;
   name: string;
   species: string;
   location: string;
   date: string;
 };
-export type Batch = {
+export type Batch = Ownership & {
   id: string;
   projectId: string;
   name: string;
@@ -14,7 +15,7 @@ export type Batch = {
   status: "Inokulering" | "Inkubation" | "Fruktsättning" | "Avslutad";
   date: string;
 };
-export type Entry = {
+export type Entry = Ownership & {
   id: string;
   batchId: string;
   date: string;
@@ -23,14 +24,14 @@ export type Entry = {
   temperature: number;
   humidity: number;
 };
-export type Harvest = {
+export type Harvest = Ownership & {
   id: string;
   batchId: string;
   date: string;
   weight: number;
   flush: number;
 };
-export type CustomSpecies = {
+export type CustomSpecies = Ownership & {
   id: string;
   name: string;
   latin: string;

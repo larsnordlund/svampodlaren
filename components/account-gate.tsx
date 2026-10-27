@@ -113,11 +113,15 @@ export function AccountGate({
         <span>
           {user.name} · {user.role === "admin" ? "Administratör" : "Användare"}
         </span>
-        {user.role === "admin" && (
+        {
           <button className="button secondary" onClick={() => setAdmin(!admin)}>
-            {admin ? "Till odlingarna" : "Administrera register & användare"}
+            {admin
+              ? "Till odlingarna"
+              : user.role === "admin"
+                ? "Administrera register & användare"
+                : "Visa register / ändra egna poster"}
           </button>
-        )}
+        }
         <button
           className="button secondary"
           disabled={busy}

@@ -100,7 +100,7 @@ test("inloggning, sessionshash, utloggning, utgång och spärr", () => {
     db.close();
   }
 });
-test("användarisolering och admin kan skapa och redigera alla register åt andra", () => {
+test("alla kan läsa; ägare och admin kan ändra men andra användare nekas", () => {
   const db = openDatabase(":memory:", blank);
   try {
     const admin = createUser(db, account("admin"), true),
@@ -108,8 +108,11 @@ test("användarisolering och admin kan skapa och redigera alla register åt andr
       b = createUser(db, account("bob"));
     ownedMutation(db, admin, { ...project("p"), ownerId: a.id });
     ownedMutation(db, b, project("pb"));
-    assert.equal(ownedData(db, a).projects.length, 1);
-    assert.equal(ownedData(db, b).projects[0].id, "pb");
+    assert.equal(ownedData(db, a).projects.length, 2);
+    assert.deepEqual(
+      ownedData(db, b).projects.map((p) => p.id),
+      ["p", "pb"],
+    );
     assert.throws(
       () => ownedMutation(db, a, { ...project("bad"), ownerId: b.id }),
       (e) => e.status === 403,
@@ -172,9 +175,10 @@ test("användarisolering och admin kan skapa och redigera alla register åt andr
     );
     for (const r of [project("p"), ...records]) {
       assert.throws(
-        () => ownedMutation(db, a, { ...r, edit: true }),
+        () => ownedMutation(db, b, { ...r, edit: true }),
         (e) => e.status === 403,
       );
+      ownedMutation(db, a, { ...r, edit: true });
       ownedMutation(db, admin, {
         ...r,
         edit: true,
@@ -190,17 +194,45 @@ test("användarisolering och admin kan skapa och redigera alla register åt andr
     }
     assert.equal(ownedData(db, a).entries[0].text, "Ändrad text");
     assert.equal(ownedData(db, a).customSpecies[0].guide, "Nya råd");
-    assert.equal(ownedData(db, b).entries.length, 0);
+    assert.equal(ownedData(db, b).entries.length, 1);
+    assert.equal(ownedData(db, b).entries[0].ownerId, a.id);
     for (const m of [
       { kind: "status", id: "batch", status: "Avslutad" },
       { kind: "odlingsform", id: "batch", growingMethod: "Påse" },
       { kind: "anteckningsfas", id: "entry", phase: "Fruktsättning" },
-      { kind: "radera-projekt", id: "pb" },
+      { kind: "radera-svamp", id: "species" },
     ])
       assert.throws(
-        () => ownedMutation(db, a, m),
+        () => ownedMutation(db, b, m),
         (e) => e.status === 403,
       );
+    ownedMutation(db, a, {
+      kind: "status",
+      id: "batch",
+      status: "Fruktsättning",
+    });
+    ownedMutation(db, a, {
+      kind: "odlingsform",
+      id: "batch",
+      growingMethod: "Påse",
+    });
+    ownedMutation(db, a, {
+      kind: "anteckningsfas",
+      id: "entry",
+      phase: "Fruktsättning",
+    });
+    for (const [kind, id] of [
+      ["radera-anteckning", "entry"],
+      ["radera-skörd", "harvest"],
+      ["radera-svamp", "species"],
+    ]) {
+      assert.throws(
+        () => ownedMutation(db, b, { kind, id }),
+        (e) => e.status === 403,
+      );
+      ownedMutation(db, a, { kind, id });
+    }
+    assert.equal(ownedData(db, b).entries.length, 0);
     assert.throws(
       () =>
         ownedMutation(db, admin, {
@@ -210,6 +242,16 @@ test("användarisolering och admin kan skapa och redigera alla register åt andr
         }),
       /samma användare/,
     );
+    for (const [kind, id] of [
+      ["radera-batch", "batch"],
+      ["radera-projekt", "p"],
+    ]) {
+      assert.throws(
+        () => ownedMutation(db, b, { kind, id }),
+        (e) => e.status === 403,
+      );
+      ownedMutation(db, a, { kind, id });
+    }
   } finally {
     db.close();
   }

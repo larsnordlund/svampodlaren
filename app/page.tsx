@@ -31,6 +31,7 @@ import { BatchMethodEditor } from "@/components/batch-method-editor";
 import { SpeciesPhoto } from "@/components/species-photo";
 import type { Mutation, DeleteKind } from "@/lib/validation";
 
+import type { User } from "@/lib/accounts";
 import { AccountGate } from "@/components/account-gate";
 
 const navigation = [
@@ -130,13 +131,10 @@ function MushroomArt({ variant = 0 }: { variant?: number }) {
 }
 
 export default function Page() {
-  return (
-    <AccountGate>
-      {(user) => <Home admin={user.role === "admin"} />}
-    </AccountGate>
-  );
+  return <AccountGate>{(user) => <Home user={user} />}</AccountGate>;
 }
-function Home({ admin }: { admin: boolean }) {
+function Home({ user }: { user: User }) {
+  const admin = user.role === "admin";
   const [view, setView] = useState<View>("Översikt");
   const { data, ready, saving, error, save, retry, clearError } =
     useCultivation();
@@ -148,6 +146,16 @@ function Home({ admin }: { admin: boolean }) {
       color: "sage",
     })),
   ];
+  const canEdit = (id: string) =>
+    admin ||
+    Object.values(data).some((rows) =>
+      rows.some(
+        (r: { id: string; ownerId?: string }) =>
+          r.id === id && r.ownerId === user.id,
+      ),
+    );
+  const myProjects = data.projects.filter((p) => p.ownerId === user.id);
+  const myBatches = data.batches.filter((b) => b.ownerId === user.id);
   const [menu, setMenu] = useState(false);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("Alla");
@@ -302,7 +310,7 @@ function Home({ admin }: { admin: boolean }) {
     setDeletion(target);
   }
   const deleteButton = (kind: DeleteKind, id: string, label: string) =>
-    admin && (
+    canEdit(id) && (
       <button
         className="delete-entry-button"
         disabled={saving}
@@ -321,8 +329,8 @@ function Home({ admin }: { admin: boolean }) {
       .includes(query.toLocaleLowerCase("sv"));
   const open = (kind: FormKind) => {
     if (kind === "anteckning") {
-      setEntryBatchId(data.batches[0]?.id || "");
-      setEntryPhase(data.batches[0]?.status || "");
+      setEntryBatchId(myBatches[0]?.id || "");
+      setEntryPhase(myBatches[0]?.status || "");
     }
     setForm(kind);
     setNotice("");
@@ -474,7 +482,7 @@ function Home({ admin }: { admin: boolean }) {
             <BatchMethodEditor
               name={b.name}
               value={b.growingMethod || ""}
-              disabled={!admin || !ready || saving}
+              disabled={!canEdit(b.id) || !ready || saving}
               onSave={async (growingMethod) => {
                 const saved = await save({
                   kind: "odlingsform",
@@ -490,7 +498,7 @@ function Home({ admin }: { admin: boolean }) {
               <select
                 aria-label={"Odlingsfas för " + b.name}
                 value={b.status}
-                disabled={!admin || !ready || saving}
+                disabled={!canEdit(b.id) || !ready || saving}
                 onChange={(e) =>
                   void save({
                     kind: "status",
@@ -923,7 +931,7 @@ function Home({ admin }: { admin: boolean }) {
                               formatDate(e.date)
                             }
                             value={e.phase || ""}
-                            disabled={!admin || saving}
+                            disabled={!canEdit(e.id) || saving}
                             onChange={(event) =>
                               void save({
                                 kind: "anteckningsfas",
@@ -1163,7 +1171,7 @@ function Home({ admin }: { admin: boolean }) {
                     <label>
                       Odlingsprojekt
                       <select name="projectId" required>
-                        {data.projects.map((p) => (
+                        {myProjects.map((p) => (
                           <option key={p.id} value={p.id}>
                             {p.name}
                           </option>
@@ -1202,7 +1210,7 @@ function Home({ admin }: { admin: boolean }) {
                         }
                       }}
                     >
-                      {data.batches.map((b) => (
+                      {myBatches.map((b) => (
                         <option key={b.id} value={b.id}>
                           {batchName(b.id)} – {projectName(b.projectId)}
                         </option>
