@@ -23,6 +23,7 @@ import {
 import {
   species as builtInSpecies,
   growingMethods,
+  cultivationPhases,
   type Batch,
 } from "@/lib/data";
 import { useCultivation } from "@/lib/use-cultivation";
@@ -142,6 +143,8 @@ export default function Home() {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("Alla");
   const [form, setForm] = useState<FormKind | null>(null);
+  const [entryBatchId, setEntryBatchId] = useState("");
+  const [entryPhase, setEntryPhase] = useState<Batch["status"] | "">("");
   const [notice, setNotice] = useState("");
   const [guide, setGuide] = useState<number | null>(null);
   const [deletion, setDeletion] = useState<DeleteTarget | null>(null);
@@ -307,6 +310,10 @@ export default function Home() {
       .toLocaleLowerCase("sv")
       .includes(query.toLocaleLowerCase("sv"));
   const open = (kind: FormKind) => {
+    if (kind === "anteckning") {
+      setEntryBatchId(data.batches[0]?.id || "");
+      setEntryPhase(data.batches[0]?.status || "");
+    }
     setForm(kind);
     setNotice("");
   };
@@ -362,6 +369,7 @@ export default function Home() {
             ...base,
             batchId: value("batchId"),
             text: value("text"),
+            phase: value("phase") as Batch["status"],
             temperature: Number(value("temperature")),
             humidity: Number(value("humidity")),
           },
@@ -871,7 +879,7 @@ export default function Home() {
               <div className="journal-list">
                 {[...data.entries]
                   .sort((a, b) => b.date.localeCompare(a.date))
-                  .filter((e) => match(e.text, batchName(e.batchId)))
+                  .filter((e) => match(e.text, batchName(e.batchId), e.phase))
                   .map((e) => (
                     <article className="panel journal-entry" key={e.id}>
                       <div className="entry-date">
@@ -895,6 +903,32 @@ export default function Home() {
                           )}
                         </div>
                         <p>{e.text}</p>
+                        <label className="status-label journal-phase-label">
+                          Odlingsfas vid anteckningen
+                          <select
+                            aria-label={
+                              "Odlingsfas för anteckning från " +
+                              batchName(e.batchId) +
+                              ", " +
+                              formatDate(e.date)
+                            }
+                            value={e.phase || ""}
+                            disabled={saving}
+                            onChange={(event) =>
+                              void save({
+                                kind: "anteckningsfas",
+                                id: e.id,
+                                phase: event.target.value as
+                                  Batch["status"] | "",
+                              })
+                            }
+                          >
+                            <option value="">Ej angiven</option>
+                            {cultivationPhases.map((phase) => (
+                              <option key={phase}>{phase}</option>
+                            ))}
+                          </select>
+                        </label>
                         <div className="readings">
                           <span>
                             <Thermometer size={16} />
@@ -910,7 +944,7 @@ export default function Home() {
                   ))}
               </div>
               {!data.entries.some((e) =>
-                match(e.text, batchName(e.batchId)),
+                match(e.text, batchName(e.batchId), e.phase),
               ) && <Empty />}
             </>
           )}
@@ -1142,7 +1176,22 @@ export default function Home() {
                 {(form === "anteckning" || form === "skörd") && (
                   <label>
                     Batch
-                    <select name="batchId" required autoFocus>
+                    <select
+                      name="batchId"
+                      required
+                      autoFocus
+                      value={form === "anteckning" ? entryBatchId : undefined}
+                      onChange={(event) => {
+                        if (form === "anteckning") {
+                          setEntryBatchId(event.target.value);
+                          setEntryPhase(
+                            data.batches.find(
+                              (batch) => batch.id === event.target.value,
+                            )?.status || "",
+                          );
+                        }
+                      }}
+                    >
                       {data.batches.map((b) => (
                         <option key={b.id} value={b.id}>
                           {batchName(b.id)} – {projectName(b.projectId)}
@@ -1161,6 +1210,28 @@ export default function Home() {
                 )}
                 {form === "anteckning" && (
                   <>
+                    <label>
+                      Odlingsfas
+                      <select
+                        name="phase"
+                        value={entryPhase}
+                        onChange={(event) =>
+                          setEntryPhase(event.target.value as Batch["status"])
+                        }
+                        required
+                      >
+                        <option value="" disabled>
+                          Välj odlingsfas
+                        </option>
+                        {cultivationPhases.map((phase) => (
+                          <option key={phase}>{phase}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <p className="tiny">
+                      Avser fasen vid anteckningstillfället. Batchens aktuella
+                      fas ändras i batchregistret.
+                    </p>
                     <label>
                       Vad har du observerat?
                       <textarea

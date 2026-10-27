@@ -19,6 +19,7 @@ export type Entry = {
   batchId: string;
   date: string;
   text: string;
+  phase: Batch["status"] | "";
   temperature: number;
   humidity: number;
 };
@@ -113,6 +114,7 @@ export const seed: Data = {
       batchId: "b1",
       date: "2026-10-26",
       text: "Fina fruktkroppar och jämn tillväxt. Ökade luftväxlingen något i morse.",
+      phase: "",
       temperature: 18,
       humidity: 88,
     },
@@ -121,6 +123,7 @@ export const seed: Data = {
       batchId: "b3",
       date: "2026-10-24",
       text: "Mycelet sprider sig jämnt i substratet. Inga avvikelser observerade.",
+      phase: "",
       temperature: 21,
       humidity: 75,
     },
@@ -240,4 +243,11 @@ export const growingMethods = [
   "Bädd",
   "Låda",
   "Burk",
+] as const;
+
+export const cultivationPhases = [
+  "Inokulering",
+  "Inkubation",
+  "Fruktsättning",
+  "Avslutad",
 ] as const;

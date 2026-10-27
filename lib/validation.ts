@@ -23,6 +23,7 @@ export const deleteKinds = [
 ] as const;
 export type DeleteKind = (typeof deleteKinds)[number];
 export type Mutation =
+  | { kind: "anteckningsfas"; id: string; phase: Entry["phase"] }
   | { kind: "odlingsform"; id: string; growingMethod: string }
   | { kind: DeleteKind; id: string }
   | { kind: "svamp"; record: CustomSpecies }
@@ -116,6 +117,13 @@ function sourceUrl(value: unknown) {
 }
 export function parseMutation(input: unknown): Mutation {
   const body = object(input);
+  if (body.kind === "anteckningsfas")
+    return {
+      kind: "anteckningsfas",
+      id: id(body.id),
+      phase:
+        body.phase === undefined || body.phase === "" ? "" : status(body.phase),
+    };
   if (body.kind === "odlingsform")
     return {
       kind: "odlingsform",
@@ -177,6 +185,7 @@ export function parseMutation(input: unknown): Mutation {
           ...base,
           batchId: id(r.batchId),
           text: text(r.text, "Observation", 2000),
+          phase: r.phase === undefined || r.phase === "" ? "" : status(r.phase),
           temperature: number(r.temperature, "Temperatur", -20, 60),
           humidity: number(r.humidity, "Luftfuktighet", 0, 100),
         },

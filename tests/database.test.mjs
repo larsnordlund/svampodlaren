@@ -268,7 +268,7 @@ test("migration från schema 1 bevarar befintliga odlingsdata", () => {
     db.close();
     db = openDatabase(filename);
     assert.deepEqual(readData(db), previous);
-    assert.equal(db.prepare("PRAGMA user_version").get().user_version, 3);
+    assert.equal(db.prepare("PRAGMA user_version").get().user_version, 4);
   } finally {
     db.close();
     rmSync(directory, { recursive: true, force: true });
@@ -498,7 +498,7 @@ test("schema 2 uppgraderas utan att gissa odlingsform eller ändra befintliga po
     db.close();
     db = openDatabase(filename);
     const after = readData(db);
-    assert.equal(db.prepare("PRAGMA user_version").get().user_version, 3);
+    assert.equal(db.prepare("PRAGMA user_version").get().user_version, 4);
     assert.equal(after.batches.length, before.batches.length);
     for (const b of after.batches) {
       assert.equal(b.growingMethod, "");
@@ -512,6 +512,92 @@ test("schema 2 uppgraderas utan att gissa odlingsform eller ändra befintliga po
       growingMethod: "Friland",
     });
     assert.equal(readData(db).batches[0].growingMethod, "Friland");
+  } finally {
+    db.close();
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("dagbokens fas sparas som historik och kan rättas utan att ändra batchens aktuella fas", () => {
+  const directory = mkdtempSync(join(tmpdir(), "svampodlaren-entry-phase-"));
+  const filename = join(directory, "cultivation.sqlite");
+  let db = openDatabase(filename, blank);
+  try {
+    mutate(db, project);
+    mutate(db, batch);
+    const entry = {
+      id: "phase-note",
+      batchId: batch.record.id,
+      date: "2026-10-01",
+      text: "Tidig observation",
+      phase: "Inkubation",
+      temperature: 20,
+      humidity: 80,
+    };
+    mutate(db, { kind: "anteckning", record: entry });
+    mutate(db, {
+      kind: "status",
+      id: batch.record.id,
+      status: "Fruktsättning",
+    });
+    assert.equal(readData(db).entries[0].phase, "Inkubation");
+    mutate(db, { kind: "anteckningsfas", id: entry.id, phase: "Inokulering" });
+    db.close();
+    db = openDatabase(filename);
+    const data = readData(db);
+    assert.equal(data.entries[0].phase, "Inokulering");
+    assert.equal(data.entries[0].date, entry.date);
+    assert.equal(data.entries[0].text, entry.text);
+    assert.equal(data.batches[0].status, "Fruktsättning");
+    assert.throws(() =>
+      parseMutation({
+        kind: "anteckning",
+        record: { ...entry, phase: "Okänd fas" },
+      }),
+    );
+    assert.throws(() =>
+      parseMutation({
+        kind: "anteckningsfas",
+        id: entry.id,
+        phase: "Okänd fas",
+      }),
+    );
+    assert.throws(
+      () =>
+        mutate(db, {
+          kind: "anteckningsfas",
+          id: "missing",
+          phase: "Avslutad",
+        }),
+      (error) => error.status === 404,
+    );
+  } finally {
+    db.close();
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("schema 3 uppgraderas utan att tilldela gamla dagboksanteckningar en påhittad fas", () => {
+  const directory = mkdtempSync(
+    join(tmpdir(), "svampodlaren-entry-phase-upgrade-"),
+  );
+  const filename = join(directory, "cultivation.sqlite");
+  let db = openDatabase(filename);
+  try {
+    const before = readData(db);
+    db.exec("ALTER TABLE entries DROP COLUMN phase; PRAGMA user_version = 3;");
+    db.close();
+    db = openDatabase(filename);
+    assert.equal(db.prepare("PRAGMA user_version").get().user_version, 4);
+    const after = readData(db);
+    assert.deepEqual(after, before);
+    assert.ok(after.entries.every((entry) => entry.phase === ""));
+    mutate(db, {
+      kind: "anteckningsfas",
+      id: after.entries[0].id,
+      phase: "Avslutad",
+    });
+    assert.equal(readData(db).entries[0].phase, "Avslutad");
   } finally {
     db.close();
     rmSync(directory, { recursive: true, force: true });

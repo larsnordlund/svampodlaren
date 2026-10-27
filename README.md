@@ -21,7 +21,7 @@ För utveckling: `pnpm dev`.
 - Dashboard med statistik beräknad från den lokala databasen.
 - Odlingsprojekt med art, plats och startdatum.
 - Batchregister med projektkoppling, unika batchnamn, substrat, odlingsform (hink, påse, stock, friland eller eget val), fasfilter och ändringsbar odlingsfas.
-- Odlingsdagbok med observation, datum, temperatur och luftfuktighet. Anteckningar kan raderas med bekräftelse; övriga odlingsposter påverkas inte.
+- Odlingsdagbok med observation, datum, odlingsfas, temperatur och luftfuktighet. Fasen föreslås från vald batch men sparas som en historisk uppgift på anteckningen. Den kan även anges eller rättas på befintliga dagboksposter. Batchens aktuella fas ändras separat i batchregistret. Anteckningar kan raderas med bekräftelse; övriga odlingsposter påverkas inte.
 - Skörderegistrering med batch, datum, vikt i gram och skördevåg.
 - Svampbibliotek med nio inbyggda introduktionsguider och källhänvisningar. Lägg till egna svampar med namn, vetenskapligt namn, beskrivning, odlingsråd och valfri källänk. Egna svampar sparas i SQLite, kan sökas fram och kan väljas i nya odlingsprojekt.
 - Sökning och JSON-export via knappen i sidhuvudet.
@@ -40,7 +40,7 @@ Radering av en egen svamp tar bort biblioteksposten; befintliga projekt behålle
 
 Appen skapar automatiskt **`data/svampodlaren.sqlite`** vid första användningen. Då läggs exempelprojekt, batcher, observationer och skördar in en gång. Därefter sparas alla ändringar permanent i SQLite. Exempeldata läggs inte tillbaka vid omstart.
 
-Befintliga databaser uppgraderas automatiskt till schemaversion 3. Version 2 lägger till `custom_species` och version 3 lägger till odlingsform på batcher. Tidigare odlingsposter bevaras; gamla batcher har ingen odlingsform tills du själv anger en. Odlingsformen kan registreras vid skapande och ändras med **Spara** på batchkortet. Den visas även vid batchval i dagbok och skördar, går att söka på och ingår i exporten.
+Befintliga databaser uppgraderas automatiskt till schemaversion 4. Version 2 lägger till `custom_species`, version 3 lägger till odlingsform på batcher och version 4 lägger till odlingsfas på dagboksanteckningar. Äldre anteckningar visar ”Ej angiven” tills en fas anges. Tidigare odlingsposter bevaras; gamla batcher har ingen odlingsform tills du själv anger en. Odlingsformen kan registreras vid skapande och ändras med **Spara** på batchkortet. Den visas även vid batchval i dagbok och skördar, går att söka på och ingår i exporten.
 
 Webbläsaren hämtar och sparar uppgifter via appens lokala `/api/data`. SQLite körs i Node.js-processen på samma dator; filen skickas inte till någon extern tjänst. Databasen behöver vara skrivbar. Ett misslyckat sparande visas som ett fel och formulärets innehåll finns kvar.
 

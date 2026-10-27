@@ -12,7 +12,7 @@ export function openDatabase(filename: string, initialData: Data = seed) {
     "PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000; PRAGMA journal_mode = WAL;",
   );
   const version = Number(db.prepare("PRAGMA user_version").get()?.user_version);
-  if (version > 3) {
+  if (version > 4) {
     db.close();
     throw new Error(
       "Databasen är skapad med en nyare version av Svampodlaren.",
@@ -37,6 +37,7 @@ export function openDatabase(filename: string, initialData: Data = seed) {
           CREATE TABLE entries (
             id TEXT PRIMARY KEY NOT NULL, batchId TEXT NOT NULL REFERENCES batches(id), date TEXT NOT NULL,
             text TEXT NOT NULL CHECK(length(trim(text)) BETWEEN 1 AND 2000),
+            phase TEXT NOT NULL DEFAULT '' CHECK(phase IN ('','Inokulering','Inkubation','Fruktsättning','Avslutad')),
             temperature REAL NOT NULL CHECK(temperature BETWEEN -20 AND 60), humidity REAL NOT NULL CHECK(humidity BETWEEN 0 AND 100)
           ) STRICT;
           CREATE TABLE harvests (
@@ -103,6 +104,24 @@ export function openDatabase(filename: string, initialData: Data = seed) {
       throw error;
     }
   }
+  if (Number(db.prepare("PRAGMA user_version").get()?.user_version) < 4) {
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      if (Number(db.prepare("PRAGMA user_version").get()?.user_version) < 4) {
+        const columns = db.prepare("PRAGMA table_info(entries)").all();
+        if (!columns.some((column) => column.name === "phase"))
+          db.exec(
+            "ALTER TABLE entries ADD COLUMN phase TEXT NOT NULL DEFAULT '' CHECK(phase IN ('','Inokulering','Inkubation','Fruktsättning','Avslutad'))",
+          );
+        db.exec("PRAGMA user_version = 4");
+      }
+      db.exec("COMMIT");
+    } catch (error) {
+      db.exec("ROLLBACK");
+      db.close();
+      throw error;
+    }
+  }
   return db;
 }
 export function readData(db: DatabaseSync): Data {
@@ -133,6 +152,17 @@ export function mutate(db: DatabaseSync, input: unknown) {
   const mutation = parseMutation(input);
   try {
     switch (mutation.kind) {
+      case "anteckningsfas": {
+        const result = db
+          .prepare("UPDATE entries SET phase=? WHERE id=?")
+          .run(mutation.phase, mutation.id);
+        if (Number(result.changes) !== 1)
+          throw new InputError(
+            "Anteckningen finns inte längre. Ladda om sidan.",
+            404,
+          );
+        break;
+      }
       case "odlingsform": {
         const result = db
           .prepare("UPDATE batches SET growingMethod=? WHERE id=?")
@@ -207,8 +237,16 @@ export function mutate(db: DatabaseSync, input: unknown) {
       case "anteckning": {
         const r = mutation.record;
         db.prepare(
-          "INSERT INTO entries(id,batchId,date,text,temperature,humidity) VALUES(?,?,?,?,?,?)",
-        ).run(r.id, r.batchId, r.date, r.text, r.temperature, r.humidity);
+          "INSERT INTO entries(id,batchId,date,text,temperature,humidity,phase) VALUES(?,?,?,?,?,?,?)",
+        ).run(
+          r.id,
+          r.batchId,
+          r.date,
+          r.text,
+          r.temperature,
+          r.humidity,
+          r.phase,
+        );
         break;
       }
       case "skörd": {

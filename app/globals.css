@@ -1549,3 +1549,17 @@ td .delete-entry-button {
   min-height: 34px;
   font-size: 10px;
 }
+
+.journal-phase-label {
+  margin: 0 0 16px;
+  padding: 12px 0 0;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.journal-phase-label {
+  font-size: 11px !important;
+}
+.journal-phase-label select {
+  font-size: 11px !important;
+  max-width: 100%;
+}
