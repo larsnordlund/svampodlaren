@@ -114,6 +114,17 @@ export function mutate(db: DatabaseSync, input: unknown) {
   const mutation = parseMutation(input);
   try {
     switch (mutation.kind) {
+      case "radera-anteckning": {
+        const result = db
+          .prepare("DELETE FROM entries WHERE id=?")
+          .run(mutation.id);
+        if (Number(result.changes) !== 1)
+          throw new InputError(
+            "Anteckningen finns inte längre. Ladda om sidan.",
+            404,
+          );
+        break;
+      }
       case "svamp": {
         const r = mutation.record;
         db.prepare(

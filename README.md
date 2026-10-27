@@ -21,7 +21,7 @@ För utveckling: `pnpm dev`.
 - Dashboard med statistik beräknad från den lokala databasen.
 - Odlingsprojekt med art, plats och startdatum.
 - Batchregister med projektkoppling, unika batchnamn, substrat, fasfilter och ändringsbar odlingsfas.
-- Odlingsdagbok med observation, datum, temperatur och luftfuktighet.
+- Odlingsdagbok med observation, datum, temperatur och luftfuktighet. Anteckningar kan raderas med bekräftelse; övriga odlingsposter påverkas inte.
 - Skörderegistrering med batch, datum, vikt i gram och skördevåg.
 - Svampbibliotek med nio inbyggda introduktionsguider och källhänvisningar. Lägg till egna svampar med namn, vetenskapligt namn, beskrivning, odlingsråd och valfri källänk. Egna svampar sparas i SQLite, kan sökas fram och kan väljas i nya odlingsprojekt.
 - Sökning och JSON-export via knappen i sidhuvudet.

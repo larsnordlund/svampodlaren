@@ -1456,3 +1456,51 @@ td small {
   color: #7b866f;
   font-size: 12px;
 }
+
+.entry-content {
+  flex: 1;
+  min-width: 0;
+}
+.entry-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.delete-entry-button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #925846;
+  font-size: 11px;
+  padding: 8px;
+}
+.delete-entry-button:hover {
+  background: #f4e8df;
+}
+.danger {
+  background: #9a4539;
+  color: white;
+}
+.danger:hover {
+  background: #7c372e;
+}
+.delete-entry-preview {
+  margin: 24px 0;
+  padding: 16px;
+  border: 1px solid var(--line);
+  background: #f2f2e8;
+  border-radius: 7px;
+}
+.delete-entry-preview p {
+  margin-top: 10px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: 1.7;
+  font-size: 13px;
+  max-height: 180px;
+  overflow: auto;
+}

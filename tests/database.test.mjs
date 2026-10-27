@@ -298,3 +298,30 @@ test("egna svampar kräver namn, nekar inbyggda dubbletter och farliga länkar",
     }),
   );
 });
+
+test("radering tar bara bort vald anteckning och består efter omstart", () => {
+  const directory = mkdtempSync(join(tmpdir(), "svampodlaren-delete-"));
+  const filename = join(directory, "cultivation.sqlite");
+  let db = openDatabase(filename);
+  try {
+    const before = readData(db);
+    mutate(db, { kind: "radera-anteckning", id: before.entries[0].id });
+    db.close();
+    db = openDatabase(filename);
+    const after = readData(db);
+    assert.deepEqual(after.entries, before.entries.slice(1));
+    for (const key of ["projects", "batches", "harvests", "customSpecies"])
+      assert.deepEqual(after[key], before[key]);
+    assert.throws(
+      () => mutate(db, { kind: "radera-anteckning", id: before.entries[0].id }),
+      (error) => error.status === 404,
+    );
+    assert.throws(() =>
+      parseMutation({ kind: "radera-anteckning", id: "' OR 1=1 --" }),
+    );
+    assert.equal(readData(db).entries.length, after.entries.length);
+  } finally {
+    db.close();
+    rmSync(directory, { recursive: true, force: true });
+  }
+});

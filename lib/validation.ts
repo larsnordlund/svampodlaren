@@ -15,6 +15,7 @@ export class InputError extends Error {
   }
 }
 export type Mutation =
+  | { kind: "radera-anteckning"; id: string }
   | { kind: "svamp"; record: CustomSpecies }
   | { kind: "projekt"; record: Project }
   | { kind: "batch"; record: Batch }
@@ -106,6 +107,8 @@ function sourceUrl(value: unknown) {
 }
 export function parseMutation(input: unknown): Mutation {
   const body = object(input);
+  if (body.kind === "radera-anteckning")
+    return { kind: "radera-anteckning", id: id(body.id) };
   if (body.kind === "status")
     return { kind: "status", id: id(body.id), status: status(body.status) };
   const r = object(body.record);

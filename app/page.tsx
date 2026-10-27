@@ -16,10 +16,11 @@ import {
   Search,
   Sprout,
   Thermometer,
+  Trash2,
   Wheat,
   X,
 } from "lucide-react";
-import { species as builtInSpecies, type Batch } from "@/lib/data";
+import { species as builtInSpecies, type Batch, type Entry } from "@/lib/data";
 import { useCultivation } from "@/lib/use-cultivation";
 import { SpeciesPhoto } from "@/components/species-photo";
 import type { Mutation } from "@/lib/validation";
@@ -128,8 +129,9 @@ export default function Home() {
   const [form, setForm] = useState<FormKind | null>(null);
   const [notice, setNotice] = useState("");
   const [guide, setGuide] = useState<number | null>(null);
+  const [deleteEntry, setDeleteEntry] = useState<Entry | null>(null);
   useEffect(() => {
-    if (!form && guide === null) return;
+    if (!form && guide === null && !deleteEntry) return;
     const previous = document.activeElement as HTMLElement | null;
     const dialog = document.querySelector<HTMLElement>('[role="dialog"]');
     const focusable = () =>
@@ -146,6 +148,8 @@ export default function Home() {
     document.body.style.overflow = "hidden";
     const close = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
+        if (deleteEntry && saving) return;
+        setDeleteEntry(null);
         setForm(null);
         setGuide(null);
       }
@@ -168,7 +172,7 @@ export default function Home() {
       document.body.style.overflow = overflow;
       previous?.focus();
     };
-  }, [form, guide]);
+  }, [form, guide, deleteEntry, saving]);
   const go = (next: View) => {
     setView(next);
     setQuery("");
@@ -720,8 +724,27 @@ export default function Home() {
                           {formatDate(e.date).split(" ").slice(1).join(" ")}
                         </span>
                       </div>
-                      <div>
-                        <span className="badge">{batchName(e.batchId)}</span>
+                      <div className="entry-content">
+                        <div className="entry-heading">
+                          <span className="badge">{batchName(e.batchId)}</span>
+                          <button
+                            className="delete-entry-button"
+                            disabled={saving}
+                            aria-label={
+                              "Radera anteckning från " +
+                              batchName(e.batchId) +
+                              ", " +
+                              formatDate(e.date)
+                            }
+                            onClick={() => {
+                              setNotice("");
+                              setDeleteEntry(e);
+                            }}
+                          >
+                            <Trash2 size={15} />
+                            Radera
+                          </button>
+                        </div>
                         <p>{e.text}</p>
                         <div className="readings">
                           <span>
@@ -1029,6 +1052,69 @@ export default function Home() {
                 </button>
               </div>
             </form>
+          </section>
+        </div>
+      )}
+      {deleteEntry && (
+        <div
+          className="modal-backdrop"
+          onClick={() => {
+            if (!saving) setDeleteEntry(null);
+          }}
+        >
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-entry-title"
+            aria-describedby="delete-entry-description"
+            className="modal"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <p className="eyebrow">ODLINGSDAGBOK</p>
+            <h2 id="delete-entry-title">Radera anteckningen?</h2>
+            <p className="subtitle" id="delete-entry-description">
+              Anteckningen tas bort permanent. Det går inte att ångra.
+            </p>
+            <div className="delete-entry-preview">
+              <span className="tiny">
+                {batchName(deleteEntry.batchId)} ·{" "}
+                {formatDate(deleteEntry.date)}
+              </span>
+              <p>{deleteEntry.text}</p>
+            </div>
+            {error && (
+              <p role="alert" className="warning">
+                {error}
+              </p>
+            )}
+            <div className="modal-actions">
+              <button
+                autoFocus
+                className="button secondary"
+                disabled={saving}
+                onClick={() => setDeleteEntry(null)}
+              >
+                Avbryt
+              </button>
+              <button
+                className="button danger"
+                disabled={saving}
+                onClick={async () => {
+                  if (
+                    await save({
+                      kind: "radera-anteckning",
+                      id: deleteEntry.id,
+                    })
+                  ) {
+                    setDeleteEntry(null);
+                    setNotice("Anteckningen har raderats.");
+                  }
+                }}
+              >
+                <Trash2 size={16} />
+                {saving ? "Raderar…" : "Radera anteckning"}
+              </button>
+            </div>
           </section>
         </div>
       )}
