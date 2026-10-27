@@ -566,17 +566,6 @@ function Home({ user }: { user: User }) {
           ))}
         </nav>
         <div className="sidebar-bottom">
-          <div className="demo-card">
-            <span className="flex items-center gap-2">
-              <Sprout size={17} /> Här börjar din odlingsresa
-            </span>
-            <p>
-              Starta med exempeldata och odla vidare.
-              <br />
-              Dina ändringar sparas på den här datorn.
-            </p>
-            <span className="demo-pill">LOKAL DATABAS</span>
-          </div>
           <div className="profile">
             <span>SO</span>
             <div>
