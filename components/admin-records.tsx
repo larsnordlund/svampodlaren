@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState, type FormEvent } from "react";
 import type { User, RecordKind } from "@/lib/accounts";
+import { BackupSettings } from "./backup-settings";
 import { cultivationPhases } from "@/lib/data";
 const registers = {
   projekt: {
@@ -472,6 +473,7 @@ export function AdminRecords({ currentUser }: { currentUser: User }) {
           </form>
         </section>
       )}
+      {isAdmin && <BackupSettings />}
       <p>
         De förinstallerade svamparterna är ett gemensamt referensbibliotek. Egna
         svampar redigeras i registret ovan.

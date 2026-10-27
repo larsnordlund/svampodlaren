@@ -108,3 +108,24 @@ pnpm format:check
 ```
 
 GitHub Actions kör SQLite-tester, produktionsbygge och TypeScript-kontroll. Bygg- och utvecklingskommandona använder Next.js Webpack-stöd för kompatibilitet med begränsade lokala körmiljöer.
+
+## Veckobackup via Apple Mail
+
+Under **Administrera register & användare → Veckobackup via e-post** kan administratörer ändra mottagaren (standard `larsnordlund@me.com`) och slå av/på utskicken. Vanliga användare har inte åtkomst till backupinställningarna eller hela databasfilen via API:t.
+
+Den här datorns schemalagda Codex-chatt **Svampodlaren – veckobackup** kör måndagar kl. 09.00 svensk tid. Körningen läser den aktuella mottagaradressen från SQLite vid varje tillfälle, tar en konsekvent ögonblicksbild även när appen används, kontrollerar `PRAGMA integrity_check`, komprimerar den till `.sqlite.gz` och använder Apple Mail för att skicka en separat fil med endast odlingsregistren. Datorn behöver vara på, Codex igång och Mail konfigurerat med ett fungerande konto och internet. Automatiken är registrerad på den här datorn; en klon av repositoryt får ingen automatisk körning utan att motsvarande schemalagda chatt skapas där.
+
+Backupen sparas även i den Git-ignorerade mappen `backups/` med filbehörighet 0600. Den lokala huvudkopian innehåller hela databasen, även konton, lösenordshashar och inställningar. Mejlet får endast filen som slutar med `-odlingar.sqlite.gz`. Den innehåller de fem odlingsregistren, utan konton, lösenordshashar, sessioner, ägarskap eller inställningar. Filen byggs om med VACUUM efter att övriga tabeller tagits bort, så att borttagna databasidor inte ligger kvar. Vid återställning från mejlbilagan skapas konton på nytt och alla poster tilldelas den första administratören. Lokala kopior tas inte bort automatiskt. Packa upp `.sqlite.gz` och använd den återställda `.sqlite`-filen som databas när appen är stoppad. En snapshot som väntar på sändning samt en redan överlämnad backup blockerar automatiska dubbletter samma vecka. Om Mail inte kan skicka ligger den lokala kopian kvar och körningen rapporterar problemet. Statusen ”Överlämnad till Mail för sändning” är inte ett kvitto på leverans till mottagarens inkorg.
+
+`scripts/weekly-backup.mjs` skapar bara den lokala filen och hanterar körningsstatus; den skickar inte e-post på egen hand. Den schemalagda chatten sköter Mail. Kommandot ska alltid köras i den ordinarie projektmappen så att den riktiga databasen säkerhetskopieras:
+
+```bash
+node --experimental-strip-types scripts/weekly-backup.mjs --status
+node --experimental-strip-types scripts/weekly-backup.mjs --prepare
+# Först efter verifierad överlämning till Mail:
+node --experimental-strip-types scripts/weekly-backup.mjs --mark-sent BACKUP_ID
+# Vid ett säkert konstaterat sändningsfel:
+node --experimental-strip-types scripts/weekly-backup.mjs --mark-failed BACKUP_ID "Orsak"
+```
+
+`SQLITE_PATH` kan ange en alternativ databas. Kommandot vägrar skapa en tom ersättningsdatabas om källfilen saknas. Vid oklar sändningsstatus ska Mail kontrolleras innan ett nytt försök görs, så att samma backup inte skickas flera gånger.
