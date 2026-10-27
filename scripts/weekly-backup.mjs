@@ -14,9 +14,15 @@ const db = openDatabase(filename);
 try {
   const [action, id, ...parts] = process.argv.slice(2);
   if (action === "--status") console.log(JSON.stringify(backupSettings(db)));
-  else if (action === "--prepare")
+  else if (action === "--prepare" || action === "--manual")
     console.log(
-      JSON.stringify(await prepareBackup(db, resolve(root, "backups"))),
+      JSON.stringify(
+        await prepareBackup(
+          db,
+          resolve(process.env.BACKUP_DIR || resolve(root, "backups")),
+          { manual: action === "--manual" },
+        ),
+      ),
     );
   else if (action === "--mark-sent" || action === "--mark-failed") {
     if (!id) throw Error("Backup-ID krävs.");
@@ -29,7 +35,7 @@ try {
     console.log(JSON.stringify({ ok: true }));
   } else
     throw Error(
-      "Använd --status, --prepare, --mark-sent ID eller --mark-failed ID orsak.",
+      "Använd --status, --prepare, --manual, --mark-sent ID eller --mark-failed ID orsak.",
     );
 } finally {
   db.close();

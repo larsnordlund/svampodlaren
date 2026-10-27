@@ -14,6 +14,7 @@ import { DatabaseSync } from "node:sqlite";
 import { openDatabase, mutate, readData } from "../lib/database.ts";
 import {
   backupSettings,
+  backupSchema,
   saveBackupSettings,
   prepareBackup,
   markBackup,
@@ -166,5 +167,42 @@ test("avstängd körning skapar ingen fil; misslyckade utskick förblir tydliga"
   } finally {
     db.close();
     rmSync(folder, { recursive: true, force: true });
+  }
+});
+
+test("manuell backup fungerar avstängd och upprepat utan att blockera veckokörningen", async () => {
+  const folder = mkdtempSync(join(tmpdir(), "svamp-manual-")),
+    db = openDatabase(":memory:");
+  try {
+    saveBackupSettings(db, { recipient: "test@example.com", enabled: false });
+    const first = await prepareBackup(db, folder, { manual: true }),
+      second = await prepareBackup(db, folder, { manual: true });
+    assert.ok(first.id && second.id && first.id !== second.id);
+    assert.equal(
+      backupSettings(db).runs.every((r) => r.mode === "manual"),
+      true,
+    );
+    saveBackupSettings(db, { recipient: "test@example.com", enabled: true });
+    const weekly = await prepareBackup(db, folder);
+    assert.ok(weekly.id);
+    markBackup(db, weekly.id, "sent");
+    assert.equal((await prepareBackup(db, folder)).skipped, true);
+    assert.ok((await prepareBackup(db, folder, { manual: true })).id);
+  } finally {
+    db.close();
+    rmSync(folder, { recursive: true, force: true });
+  }
+});
+test("äldre backuplogg migreras och behåller veckostatus", () => {
+  const db = openDatabase(":memory:");
+  try {
+    db.exec(
+      "DROP TABLE backup_runs;CREATE TABLE backup_runs(id TEXT PRIMARY KEY,created TEXT,recipient TEXT,filename TEXT,status TEXT,message TEXT);INSERT INTO backup_runs VALUES('old','2026-10-27','test@example.com','old.sqlite.gz','sent','')",
+    );
+    backupSchema(db);
+    assert.equal(backupSettings(db).runs[0].mode, "weekly");
+    assert.equal(backupSettings(db).runs[0].status, "sent");
+  } finally {
+    db.close();
   }
 });

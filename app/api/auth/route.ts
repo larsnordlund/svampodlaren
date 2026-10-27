@@ -1,6 +1,8 @@
 import { getDatabase } from "@/lib/database";
 import {
   createUser,
+  updateUser,
+  deleteUser,
   currentUser,
   users,
   login,
@@ -66,6 +68,12 @@ export async function POST(request: Request) {
           },
         },
       );
+    }
+    if (body.action === "update-user" || body.action === "delete-user") {
+      const actor = requireUser(db, request);
+      if (body.action === "update-user") updateUser(db, actor, body);
+      else deleteUser(db, actor, body);
+      return Response.json({ users: users(db) }, { headers });
     }
     if (body.action === "create-user") {
       if (requireUser(db, request).role !== "admin")

@@ -7,6 +7,7 @@ type Run = {
   filename: string;
   status: string;
   message: string;
+  mode: "manual" | "weekly";
 };
 export function BackupSettings() {
   const [recipient, setRecipient] = useState(""),
@@ -111,6 +112,42 @@ export function BackupSettings() {
           Försök igen
         </button>
       )}
+      <h3>Backup på kommando</h3>
+      <p>
+        Kör backup när du vill, även om veckobackup är avstängd eller redan har
+        körts. Kopiorna sparas lokalt och kan hämtas här. Knappen skickar inget
+        mejl; välj odlingsfilen om du vill bifoga den i Mail.
+      </p>
+      <button
+        className="button primary"
+        disabled={!ready || busy}
+        onClick={async () => {
+          setBusy(true);
+          setError("");
+          setNotice("");
+          try {
+            const r = await fetch("/api/backup", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ action: "run" }),
+            });
+            const b = await r.json();
+            if (!r.ok) throw Error(b.error);
+            setRuns(b.runs);
+            setNotice(
+              "Backupen är klar och sparad lokalt. Använd Hämta fullständig backup eller Hämta odlingsfil nedan.",
+            );
+          } catch (e) {
+            setError(
+              e instanceof Error ? e.message : "Backupen kunde inte skapas.",
+            );
+          } finally {
+            setBusy(false);
+          }
+        }}
+      >
+        {busy ? "Arbetar…" : "Kör backup nu"}
+      </button>
       <h3>Senaste körningar</h3>
       {runs.length === 0 ? (
         <p>Ingen backup har körts ännu.</p>
@@ -118,13 +155,30 @@ export function BackupSettings() {
         <ul>
           {runs.map((r) => (
             <li key={r.id}>
-              {new Date(r.created).toLocaleString("sv-SE")} · {r.recipient} ·{" "}
-              {r.status === "sent"
-                ? "Överlämnad till Mail för sändning"
-                : r.status === "failed"
-                  ? "Utskicket misslyckades"
-                  : "Sparad lokalt; utskick inte bekräftat"}
+              {new Date(r.created).toLocaleString("sv-SE")} ·{" "}
+              {r.mode === "manual" ? "Manuell backup" : r.recipient} ·{" "}
+              {r.mode === "manual"
+                ? "Sparad lokalt"
+                : r.status === "sent"
+                  ? "Överlämnad till Mail för sändning"
+                  : r.status === "failed"
+                    ? "Utskicket misslyckades"
+                    : "Sparad lokalt; utskick inte bekräftat"}
               {r.message ? ` · ${r.message}` : ""}
+              <div className="admin-toolbar">
+                <a
+                  className="button secondary"
+                  href={`/api/backup/download?id=${encodeURIComponent(r.id)}&file=full`}
+                >
+                  Hämta fullständig backup
+                </a>
+                <a
+                  className="button secondary"
+                  href={`/api/backup/download?id=${encodeURIComponent(r.id)}&file=cultivation`}
+                >
+                  Hämta odlingsfil för mejl
+                </a>
+              </div>
             </li>
           ))}
         </ul>

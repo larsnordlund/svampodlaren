@@ -3,6 +3,8 @@ import assert from "node:assert/strict";
 import { openDatabase, readData } from "../lib/database.ts";
 import {
   createUser,
+  updateUser,
+  deleteUser,
   login,
   newSession,
   currentUser,
@@ -281,5 +283,130 @@ test("konton, ägarskap och sessioner bevaras vid omstart", async () => {
   } finally {
     db?.close();
     rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("admin kan redigera konton; lösenords- och rollbyte återkallar sessioner", () => {
+  const db = openDatabase(":memory:", blank);
+  try {
+    const admin = createUser(db, account("admin"), true),
+      user = createUser(db, account("alice"));
+    const request = () =>
+      new Request("http://localhost", {
+        headers: { cookie: `svamp_session=${newSession(db, user)}` },
+      });
+    const session = request();
+    assert.throws(
+      () => updateUser(db, user, { ...user, name: "Intrång" }),
+      (e) => e.status === 403,
+    );
+    updateUser(db, admin, { ...user, name: "Alice Svensson", password: "" });
+    assert.equal(currentUser(db, session).name, "Alice Svensson");
+    assert.throws(
+      () => updateUser(db, admin, { ...user, username: "admin" }),
+      (e) => e.status === 409,
+    );
+    assert.equal(login(db, account("alice")).name, "Alice Svensson");
+    updateUser(db, admin, {
+      ...user,
+      username: "alice-new",
+      role: "admin",
+      password: "Synthetic-replacement-5928",
+    });
+    assert.equal(currentUser(db, session), null);
+    assert.throws(
+      () => login(db, account("alice")),
+      (e) => e.status === 401,
+    );
+    assert.throws(
+      () =>
+        login(db, {
+          username: "alice-new",
+          password: account("alice").password,
+        }),
+      (e) => e.status === 401,
+    );
+    assert.equal(
+      login(db, {
+        username: "alice-new",
+        password: "Synthetic-replacement-5928",
+      }).role,
+      "admin",
+    );
+  } finally {
+    db.close();
+  }
+});
+test("sista administratören, eget konto och ogiltig överföring skyddas", () => {
+  const db = openDatabase(":memory:", blank);
+  try {
+    const admin = createUser(db, account("admin"), true),
+      user = createUser(db, account("alice"));
+    assert.throws(
+      () => updateUser(db, admin, { ...admin, role: "user" }),
+      (e) => e.status === 409,
+    );
+    assert.throws(
+      () => deleteUser(db, admin, { id: admin.id, transferTo: user.id }),
+      (e) => e.status === 409,
+    );
+    assert.throws(
+      () => deleteUser(db, user, { id: admin.id, transferTo: user.id }),
+      (e) => e.status === 403,
+    );
+    assert.throws(
+      () => deleteUser(db, admin, { id: user.id, transferTo: user.id }),
+      /annan befintlig/,
+    );
+    assert.throws(
+      () => deleteUser(db, admin, { id: user.id, transferTo: "missing" }),
+      /annan befintlig/,
+    );
+    createUser(db, { ...account("other-admin"), role: "admin" });
+    assert.throws(
+      () => updateUser(db, admin, { ...admin, role: "user" }),
+      /egen administratör/,
+    );
+    assert.throws(
+      () => deleteUser(db, admin, { id: admin.id, transferTo: user.id }),
+      /inloggad/,
+    );
+    assert.equal(db.prepare("SELECT count(*) n FROM users").get().n, 3);
+  } finally {
+    db.close();
+  }
+});
+test("radering av konto överför hela odlingskedjan och återkallar inloggning", () => {
+  const db = openDatabase(":memory:");
+  try {
+    const admin = createUser(db, account("admin"), true),
+      user = createUser(db, account("alice"));
+    // Move seeded ownership to the test user, including linked projects/batches/entries/harvests.
+    db.prepare("UPDATE record_owners SET userId=?").run(user.id);
+    const data = readData(db);
+    const token = newSession(db, user);
+    const req = new Request("http://localhost", {
+      headers: { cookie: `svamp_session=${token}` },
+    });
+    deleteUser(db, admin, { id: user.id, transferTo: admin.id });
+    assert.deepEqual(readData(db), data);
+    assert.equal(
+      db
+        .prepare("SELECT count(*) n FROM record_owners WHERE userId=?")
+        .get(user.id).n,
+      0,
+    );
+    assert.equal(currentUser(db, req), null);
+    assert.equal(
+      db.prepare("SELECT id FROM users WHERE id=?").get(user.id),
+      undefined,
+    );
+    assert.equal(db.prepare("PRAGMA foreign_key_check").all().length, 0);
+    assert.throws(
+      () => login(db, account("alice")),
+      (e) => e.status === 401,
+    );
+  } finally {
+    db.close();
   }
 });

@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState, type FormEvent } from "react";
 import type { User, RecordKind } from "@/lib/accounts";
+import { UserManagement } from "./user-management";
 import { BackupSettings } from "./backup-settings";
 import { cultivationPhases } from "@/lib/data";
 const registers = {
@@ -392,86 +393,22 @@ export function AdminRecords({ currentUser }: { currentUser: User }) {
         ) && <p>Inga poster för detta urval.</p>}
       </section>
       {isAdmin && (
-        <section className="admin-editor">
-          <h2>Användarkonton</h2>
-          <p>
-            Kontona lagras lokalt. Endast administratörer kan skapa nya
-            användare.
-          </p>
-          <ul>
-            {users.map((u) => (
-              <li key={u.id}>
-                {u.name} · {u.username} ·{" "}
-                {u.role === "admin" ? "Administratör" : "Användare"}
-              </li>
-            ))}
-          </ul>
-          <form
-            onSubmit={async (e) => {
-              e.preventDefault();
-              const f = e.currentTarget;
-              setBusy(true);
-              setError("");
-              try {
-                const r = await fetch("/api/auth", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    action: "create-user",
-                    ...Object.fromEntries(new FormData(f)),
-                  }),
-                });
-                const b = await r.json();
-                if (!r.ok) throw Error(b.error);
-                await load();
-                f.reset();
-                setNotice("Användarkontot har skapats.");
-              } catch (e) {
-                setError(
-                  e instanceof Error ? e.message : "Kunde inte skapa konto.",
-                );
-              } finally {
-                setBusy(false);
-              }
-            }}
-          >
-            <fieldset disabled={busy}>
-              <label>
-                Namn
-                <input name="name" required maxLength={120} />
-              </label>
-              <label>
-                Användarnamn
-                <input
-                  name="username"
-                  required
-                  minLength={3}
-                  maxLength={64}
-                  autoComplete="off"
-                />
-              </label>
-              <label>
-                Lösenord (minst 12 tecken)
-                <input
-                  name="password"
-                  type="password"
-                  required
-                  minLength={12}
-                  maxLength={256}
-                  autoComplete="new-password"
-                />
-              </label>
-              <label>
-                Behörighet
-                <select name="role">
-                  <option value="user">Användare</option>
-                  <option value="admin">Administratör</option>
-                </select>
-              </label>
-              <button className="button primary">Skapa användare</button>
-            </fieldset>
-          </form>
-        </section>
+        <UserManagement
+          users={users}
+          currentUser={currentUser}
+          counts={Object.values(owners).reduce(
+            (result: Record<string, number>, id) => {
+              result[id] = (result[id] || 0) + 1;
+              return result;
+            },
+            {},
+          )}
+          onChanged={async () => {
+            await load();
+            setEditor(false);
+            setFilter("");
+          }}
+        />
       )}
       {isAdmin && <BackupSettings />}
       <p>

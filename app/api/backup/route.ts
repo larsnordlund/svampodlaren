@@ -1,6 +1,11 @@
 import { getDatabase } from "@/lib/database";
 import { requireUser } from "@/lib/accounts";
-import { backupSettings, saveBackupSettings } from "@/lib/backup";
+import {
+  backupSettings,
+  saveBackupSettings,
+  prepareBackup,
+  backupDirectory,
+} from "@/lib/backup";
 import { allowedLocalRequest } from "@/lib/local-request";
 import { InputError } from "@/lib/validation";
 export const runtime = "nodejs";
@@ -44,6 +49,17 @@ export async function POST(request: Request) {
       body = JSON.parse(raw);
     } catch {
       throw new InputError("Ogiltig JSON.");
+    }
+    if (body && body.action === "run") {
+      const result = await prepareBackup(db, backupDirectory(), {
+        manual: true,
+      });
+      if ("id" in result)
+        return Response.json(
+          { ...backupSettings(db), created: result.id },
+          { headers },
+        );
+      throw new InputError("Backupen kunde inte startas.", 409);
     }
     return Response.json(saveBackupSettings(db, body), { headers });
   } catch (e) {

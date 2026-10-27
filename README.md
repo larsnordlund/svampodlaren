@@ -73,7 +73,7 @@ Administratörer öppnar **Administrera register & användare** överst på sida
 
 Alla inloggade användare kan se och exportera samtliga odlingsposter. Vanliga användare kan skapa, ändra och radera egna poster, men får inte ändra eller radera andras poster. Knappen **Visa register / ändra egna poster** öppnar redigeringen. Administratörer kan ändra och radera allas poster och skapa åt andra. Behörigheterna kontrolleras även via API:t. Den vanliga odlingsvyns nya poster tillhör den inloggade användaren; använd administratörsvyn för att skapa åt andra.
 
-Lösenord lagras med individuella salter och scrypt (N=131072, r=8, p=1). Sessioner har slumpmässiga token, endast SHA-256-hashen lagras i databasen, och webbläsaren får en HttpOnly-cookie med SameSite=Strict. Sessioner löper ut efter sju dagar och återkallas vid utloggning. Fem misslyckade inloggningar per användarnamn ger 15 minuters spärr. Välj minst 12 tecken för lösenord. Automatisk lösenordsåterställning och byte av lösenord ingår ännu inte; spara dina inloggningsuppgifter säkert.
+Lösenord lagras med individuella salter och scrypt (N=131072, r=8, p=1). Sessioner har slumpmässiga token, endast SHA-256-hashen lagras i databasen, och webbläsaren får en HttpOnly-cookie med SameSite=Strict. Sessioner löper ut efter sju dagar och återkallas vid utloggning. Fem misslyckade inloggningar per användarnamn ger 15 minuters spärr. Välj minst 12 tecken för lösenord. Administratörer kan ange ett nytt lösenord i användarhanteringen; automatisk återställning via e-post ingår inte. Byte av användarnamn, lösenord eller roll återkallar kontots sessioner.
 
 Startkommandona binder servern till `127.0.0.1`. API:t accepterar bara lokala värdnamn, och skrivningar kräver samma origin. Alla dataanrop kräver inloggning, behörigheter kontrolleras på servern och ägarskap kontrolleras vid alla ändringar där. Servern validerar uppgifter och använder parametriserad SQL, främmande nycklar och databasbegränsningar. Kontona delar samma dator och databasfil; en person med åtkomst till filen kan läsa eller ändra databasen. Säkerhetskopior innehåller därför även lösenordshashar och sessioner och ska skyddas.
 
@@ -129,3 +129,19 @@ node --experimental-strip-types scripts/weekly-backup.mjs --mark-failed BACKUP_I
 ```
 
 `SQLITE_PATH` kan ange en alternativ databas. Kommandot vägrar skapa en tom ersättningsdatabas om källfilen saknas. Vid oklar sändningsstatus ska Mail kontrolleras innan ett nytt försök görs, så att samma backup inte skickas flera gånger.
+
+## Ändra och radera användare
+
+Under **Administrera register & användare → Användarkonton** finns knappar för att ändra och radera konton. Namn, användarnamn och roll kan ändras; lämna lösenordsfältet tomt för att behålla befintligt lösenord. Den sista administratören kan inte nedgraderas eller raderas. Du kan inte radera ditt inloggade konto eller ta bort din egen administratörsroll.
+
+Vid radering visas en bekräftelse där du väljer en annan användare som tar över samtliga odlingsposter. Kontot och dess sessioner raderas i samma transaktion som ägarskapet överförs. Inga odlingsposter tas bort.
+
+## Backup på kommando
+
+Administratören kan trycka **Kör backup nu** i backupinställningarna. Det fungerar även om veckokörningen är avstängd eller en backup redan har skapats samma vecka. Manuell körning påverkar inte veckokörningens dubblettskydd. Knappen sparar en fullständig lokal backup och en separat odlingsfil utan konton/inloggningsuppgifter. Båda kan laddas ned via administratörsskyddade länkar i körningshistoriken. Inget mejl skickas automatiskt av knappen; bifoga vid behov odlingsfilen i Mail.
+
+Samma manuella körning finns i terminalen:
+
+```bash
+node --experimental-strip-types scripts/weekly-backup.mjs --manual
+```

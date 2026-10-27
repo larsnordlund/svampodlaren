@@ -287,3 +287,125 @@ export function ownedMutation(db: DatabaseSync, user: User, input: unknown) {
       db.prepare("DELETE FROM record_owners WHERE recordId=?").run(m.id);
   }
 }
+
+export function updateUser(
+  db: DatabaseSync,
+  actor: User,
+  input: Record<string, unknown>,
+) {
+  if (actor.role !== "admin") throw new InputError("Administratör krävs.", 403);
+  if (typeof input.id !== "string") throw new InputError("Välj en användare.");
+  const username =
+    typeof input.username === "string"
+      ? input.username.trim().toLowerCase()
+      : "";
+  const name = typeof input.name === "string" ? input.name.trim() : "";
+  if (!/^[a-z0-9._-]{3,64}$/.test(username))
+    throw new InputError(
+      "Användarnamn: 3–64 tecken (a–z, siffror, punkt, bindestreck).",
+    );
+  if (!name || name.length > 120)
+    throw new InputError("Ange ett namn med högst 120 tecken.");
+  if (input.role !== "admin" && input.role !== "user")
+    throw new InputError("Välj en giltig behörighet.");
+  let hash: string | undefined;
+  if (input.password !== undefined && input.password !== "") {
+    if (
+      typeof input.password !== "string" ||
+      input.password.length < 12 ||
+      input.password.length > 256
+    )
+      throw new InputError("Lösenordet måste innehålla 12–256 tecken.");
+    hash = passwordHash(input.password);
+  }
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    const target = db.prepare("SELECT * FROM users WHERE id=?").get(input.id);
+    if (!target) throw new InputError("Användaren finns inte längre.", 404);
+    if (target.role === "admin" && input.role !== "admin") {
+      if (
+        Number(
+          db.prepare("SELECT count(*) n FROM users WHERE role='admin'").get()
+            ?.n,
+        ) <= 1
+      )
+        throw new InputError(
+          "Den sista administratören måste behålla sin behörighet.",
+          409,
+        );
+      if (input.id === actor.id)
+        throw new InputError(
+          "Du kan inte ta bort din egen administratörsbehörighet.",
+          409,
+        );
+    }
+    db.prepare(
+      "UPDATE users SET username=?,name=?,role=?,password=? WHERE id=?",
+    ).run(
+      username,
+      name,
+      input.role,
+      hash || String(target.password),
+      input.id,
+    );
+    if (hash || input.role !== target.role || username !== target.username)
+      db.prepare("DELETE FROM sessions WHERE userId=?").run(input.id);
+    if (hash || username !== target.username)
+      db.prepare("DELETE FROM login_attempts WHERE username IN (?,?)").run(
+        String(target.username),
+        username,
+      );
+    db.exec("COMMIT");
+  } catch (e) {
+    db.exec("ROLLBACK");
+    if (e instanceof Error && e.message.includes("UNIQUE"))
+      throw new InputError("Användarnamnet är upptaget.", 409);
+    throw e;
+  }
+}
+export function deleteUser(
+  db: DatabaseSync,
+  actor: User,
+  input: Record<string, unknown>,
+) {
+  if (actor.role !== "admin") throw new InputError("Administratör krävs.", 403);
+  if (typeof input.id !== "string" || typeof input.transferTo !== "string")
+    throw new InputError("Välj användare och vem som tar över posterna.");
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    const target = db.prepare("SELECT * FROM users WHERE id=?").get(input.id);
+    if (!target) throw new InputError("Användaren finns inte längre.", 404);
+    if (
+      target.role === "admin" &&
+      Number(
+        db.prepare("SELECT count(*) n FROM users WHERE role='admin'").get()?.n,
+      ) <= 1
+    )
+      throw new InputError("Den sista administratören kan inte raderas.", 409);
+    if (input.id === actor.id)
+      throw new InputError(
+        "Du kan inte radera kontot du är inloggad med.",
+        409,
+      );
+    if (
+      input.transferTo === input.id ||
+      !db.prepare("SELECT id FROM users WHERE id=?").get(input.transferTo)
+    )
+      throw new InputError(
+        "Välj en annan befintlig användare som tar över posterna.",
+      );
+    db.prepare("UPDATE record_owners SET userId=? WHERE userId=?").run(
+      input.transferTo,
+      input.id,
+    );
+    db.prepare("DELETE FROM sessions WHERE userId=?").run(input.id);
+    db.prepare("DELETE FROM login_attempts WHERE username=?").run(
+      String(target.username),
+    );
+    db.prepare("DELETE FROM users WHERE id=?").run(input.id);
+    db.exec("COMMIT");
+  } catch (e) {
+    db.exec("ROLLBACK");
+    throw e;
+  }
+}
