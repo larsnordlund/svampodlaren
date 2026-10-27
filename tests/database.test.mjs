@@ -268,7 +268,7 @@ test("migration från schema 1 bevarar befintliga odlingsdata", () => {
     db.close();
     db = openDatabase(filename);
     assert.deepEqual(readData(db), previous);
-    assert.equal(db.prepare("PRAGMA user_version").get().user_version, 2);
+    assert.equal(db.prepare("PRAGMA user_version").get().user_version, 3);
   } finally {
     db.close();
     rmSync(directory, { recursive: true, force: true });
@@ -429,5 +429,91 @@ test("samtliga raderingsåtgärder validerar ID och nekar saknade poster utan si
     assert.deepEqual(readData(db), before);
   } finally {
     db.close();
+  }
+});
+
+test("batchens odlingsform kan skapas, ändras till eget alternativ och sparas över omstart", () => {
+  const directory = mkdtempSync(join(tmpdir(), "svampodlaren-method-"));
+  const filename = join(directory, "cultivation.sqlite");
+  let db = openDatabase(filename, blank);
+  try {
+    mutate(db, project);
+    mutate(db, {
+      ...batch,
+      record: { ...batch.record, growingMethod: "Hink" },
+    });
+    assert.equal(readData(db).batches[0].growingMethod, "Hink");
+    for (const growingMethod of [
+      "Påse",
+      "Stock",
+      "Friland",
+      "Flaska 2 liter",
+    ]) {
+      mutate(db, { kind: "odlingsform", id: batch.record.id, growingMethod });
+      assert.equal(readData(db).batches[0].growingMethod, growingMethod);
+    }
+    db.close();
+    db = openDatabase(filename);
+    const saved = readData(db).batches[0];
+    assert.equal(saved.growingMethod, "Flaska 2 liter");
+    assert.equal(saved.substrate, batch.record.substrate);
+    assert.equal(saved.projectId, project.record.id);
+    assert.throws(
+      () =>
+        mutate(db, {
+          kind: "odlingsform",
+          id: "missing",
+          growingMethod: "Hink",
+        }),
+      (error) => error.status === 404,
+    );
+    assert.throws(() =>
+      parseMutation({
+        kind: "odlingsform",
+        id: batch.record.id,
+        growingMethod: "x".repeat(81),
+      }),
+    );
+    assert.throws(() =>
+      parseMutation({
+        ...batch,
+        record: { ...batch.record, growingMethod: 123 },
+      }),
+    );
+  } finally {
+    db.close();
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("schema 2 uppgraderas utan att gissa odlingsform eller ändra befintliga poster", () => {
+  const directory = mkdtempSync(join(tmpdir(), "svampodlaren-method-upgrade-"));
+  const filename = join(directory, "cultivation.sqlite");
+  let db = openDatabase(filename);
+  try {
+    const before = readData(db);
+    db.exec(
+      "ALTER TABLE batches DROP COLUMN growingMethod; PRAGMA user_version = 2;",
+    );
+    db.close();
+    db = openDatabase(filename);
+    const after = readData(db);
+    assert.equal(db.prepare("PRAGMA user_version").get().user_version, 3);
+    assert.equal(after.batches.length, before.batches.length);
+    for (const b of after.batches) {
+      assert.equal(b.growingMethod, "");
+      assert.equal(b.name, before.batches.find((old) => old.id === b.id).name);
+    }
+    for (const key of ["projects", "entries", "harvests", "customSpecies"])
+      assert.deepEqual(after[key], before[key]);
+    mutate(db, {
+      kind: "odlingsform",
+      id: after.batches[0].id,
+      growingMethod: "Friland",
+    });
+    assert.equal(readData(db).batches[0].growingMethod, "Friland");
+  } finally {
+    db.close();
+    rmSync(directory, { recursive: true, force: true });
   }
 });

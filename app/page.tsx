@@ -20,8 +20,13 @@ import {
   Wheat,
   X,
 } from "lucide-react";
-import { species as builtInSpecies, type Batch } from "@/lib/data";
+import {
+  species as builtInSpecies,
+  growingMethods,
+  type Batch,
+} from "@/lib/data";
 import { useCultivation } from "@/lib/use-cultivation";
+import { BatchMethodEditor } from "@/components/batch-method-editor";
 import { SpeciesPhoto } from "@/components/species-photo";
 import type { Mutation, DeleteKind } from "@/lib/validation";
 
@@ -190,8 +195,12 @@ export default function Home() {
     setNotice("");
     setMenu(false);
   };
-  const batchName = (id: string) =>
-    data.batches.find((b) => b.id === id)?.name ?? "Okänd batch";
+  const batchName = (id: string) => {
+    const batch = data.batches.find((b) => b.id === id);
+    return batch
+      ? batch.name + (batch.growingMethod ? " · " + batch.growingMethod : "")
+      : "Okänd batch";
+  };
   const projectName = (id: string) =>
     data.projects.find((p) => p.id === id)?.name ?? "Okänt projekt";
   function requestDelete(kind: DeleteKind, id: string) {
@@ -225,7 +234,7 @@ export default function Home() {
           noun: "batchen",
           label: "batch",
           meta: projectName(b.projectId),
-          preview: b.name + " · " + b.substrate,
+          preview: batchName(b.id) + " · " + b.substrate,
           blocked:
             entries || harvests
               ? `Batchen har ${entries} anteckningar och ${harvests} skördar. Radera dem först.`
@@ -341,6 +350,7 @@ export default function Home() {
             name: value("name"),
             projectId: value("projectId"),
             substrate: value("substrate"),
+            growingMethod: value("growingMethod"),
             status: "Inokulering",
           },
         };
@@ -411,7 +421,12 @@ export default function Home() {
     data.batches
       .filter(
         (b) =>
-          match(b.name, projectName(b.projectId), b.substrate) &&
+          match(
+            b.name,
+            projectName(b.projectId),
+            b.substrate,
+            b.growingMethod,
+          ) &&
           (filter === "Alla" || b.status === filter) &&
           (!limit || b.status !== "Avslutad"),
       )
@@ -438,6 +453,20 @@ export default function Home() {
                 g skördat
               </span>
             </div>
+            <BatchMethodEditor
+              name={b.name}
+              value={b.growingMethod || ""}
+              disabled={!ready || saving}
+              onSave={async (growingMethod) => {
+                const saved = await save({
+                  kind: "odlingsform",
+                  id: b.id,
+                  growingMethod,
+                });
+                if (saved) setNotice("Odlingsformen har sparats.");
+                return saved;
+              }}
+            />
             <label className="status-label">
               Odlingsfas
               <select
@@ -467,6 +496,11 @@ export default function Home() {
       ));
   return (
     <div className="app-shell">
+      <datalist id="growing-methods">
+        {growingMethods.map((method) => (
+          <option value={method} key={method} />
+        ))}
+      </datalist>
       <aside className={menu ? "sidebar expanded" : "sidebar"}>
         <a
           href="#"
@@ -821,7 +855,12 @@ export default function Home() {
               <section className="batch-grid">{batchCards()}</section>
               {!data.batches.some(
                 (b) =>
-                  match(b.name, projectName(b.projectId), b.substrate) &&
+                  match(
+                    b.name,
+                    projectName(b.projectId),
+                    b.substrate,
+                    b.growingMethod,
+                  ) &&
                   (filter === "Alla" || filter === b.status),
               ) && <Empty />}
             </>
@@ -1087,6 +1126,16 @@ export default function Home() {
                         ))}
                       </select>
                     </label>
+                    <Field
+                      label="Odlingsform / behållare"
+                      name="growingMethod"
+                      list="growing-methods"
+                      maxLength={80}
+                      placeholder="Hink, påse, stock, friland eller eget val"
+                    />
+                    <p className="tiny">
+                      Välj ett förslag eller skriv en egen odlingsform.
+                    </p>
                     <Field label="Substrat" name="substrate" />
                   </>
                 )}
@@ -1096,7 +1145,7 @@ export default function Home() {
                     <select name="batchId" required autoFocus>
                       {data.batches.map((b) => (
                         <option key={b.id} value={b.id}>
-                          {b.name} – {projectName(b.projectId)}
+                          {batchName(b.id)} – {projectName(b.projectId)}
                         </option>
                       ))}
                     </select>

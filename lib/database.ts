@@ -12,7 +12,7 @@ export function openDatabase(filename: string, initialData: Data = seed) {
     "PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000; PRAGMA journal_mode = WAL;",
   );
   const version = Number(db.prepare("PRAGMA user_version").get()?.user_version);
-  if (version > 2) {
+  if (version > 3) {
     db.close();
     throw new Error(
       "Databasen är skapad med en nyare version av Svampodlaren.",
@@ -31,6 +31,7 @@ export function openDatabase(filename: string, initialData: Data = seed) {
           CREATE TABLE batches (
             id TEXT PRIMARY KEY NOT NULL, projectId TEXT NOT NULL REFERENCES projects(id),
             name TEXT NOT NULL UNIQUE CHECK(length(trim(name)) BETWEEN 1 AND 120), substrate TEXT NOT NULL,
+            growingMethod TEXT NOT NULL DEFAULT '' CHECK(length(growingMethod) <= 80),
             status TEXT NOT NULL CHECK(status IN ('Inokulering','Inkubation','Fruktsättning','Avslutad')), date TEXT NOT NULL
           ) STRICT;
           CREATE TABLE entries (
@@ -84,6 +85,24 @@ export function openDatabase(filename: string, initialData: Data = seed) {
       throw error;
     }
   }
+  if (Number(db.prepare("PRAGMA user_version").get()?.user_version) < 3) {
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      if (Number(db.prepare("PRAGMA user_version").get()?.user_version) < 3) {
+        const columns = db.prepare("PRAGMA table_info(batches)").all();
+        if (!columns.some((column) => column.name === "growingMethod"))
+          db.exec(
+            "ALTER TABLE batches ADD COLUMN growingMethod TEXT NOT NULL DEFAULT '' CHECK(length(growingMethod) <= 80)",
+          );
+        db.exec("PRAGMA user_version = 3");
+      }
+      db.exec("COMMIT");
+    } catch (error) {
+      db.exec("ROLLBACK");
+      db.close();
+      throw error;
+    }
+  }
   return db;
 }
 export function readData(db: DatabaseSync): Data {
@@ -114,6 +133,17 @@ export function mutate(db: DatabaseSync, input: unknown) {
   const mutation = parseMutation(input);
   try {
     switch (mutation.kind) {
+      case "odlingsform": {
+        const result = db
+          .prepare("UPDATE batches SET growingMethod=? WHERE id=?")
+          .run(mutation.growingMethod, mutation.id);
+        if (Number(result.changes) !== 1)
+          throw new InputError(
+            "Batchen finns inte längre. Ladda om sidan.",
+            404,
+          );
+        break;
+      }
       case "radera-anteckning":
       case "radera-projekt":
       case "radera-batch":
@@ -162,8 +192,16 @@ export function mutate(db: DatabaseSync, input: unknown) {
       case "batch": {
         const r = mutation.record;
         db.prepare(
-          "INSERT INTO batches(id,projectId,name,substrate,status,date) VALUES(?,?,?,?,?,?)",
-        ).run(r.id, r.projectId, r.name, r.substrate, r.status, r.date);
+          "INSERT INTO batches(id,projectId,name,substrate,status,date,growingMethod) VALUES(?,?,?,?,?,?,?)",
+        ).run(
+          r.id,
+          r.projectId,
+          r.name,
+          r.substrate,
+          r.status,
+          r.date,
+          r.growingMethod,
+        );
         break;
       }
       case "anteckning": {

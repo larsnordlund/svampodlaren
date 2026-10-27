@@ -23,6 +23,7 @@ export const deleteKinds = [
 ] as const;
 export type DeleteKind = (typeof deleteKinds)[number];
 export type Mutation =
+  | { kind: "odlingsform"; id: string; growingMethod: string }
   | { kind: DeleteKind; id: string }
   | { kind: "svamp"; record: CustomSpecies }
   | { kind: "projekt"; record: Project }
@@ -115,6 +116,12 @@ function sourceUrl(value: unknown) {
 }
 export function parseMutation(input: unknown): Mutation {
   const body = object(input);
+  if (body.kind === "odlingsform")
+    return {
+      kind: "odlingsform",
+      id: id(body.id),
+      growingMethod: optionalText(body.growingMethod, "Odlingsform", 80),
+    };
   if (deleteKinds.includes(body.kind as DeleteKind))
     return { kind: body.kind as DeleteKind, id: id(body.id) };
   if (body.kind === "status")
@@ -159,6 +166,7 @@ export function parseMutation(input: unknown): Mutation {
           projectId: id(r.projectId),
           name: text(r.name, "Batchnamn"),
           substrate: text(r.substrate, "Substrat"),
+          growingMethod: optionalText(r.growingMethod, "Odlingsform", 80),
           status: status(r.status),
         },
       };

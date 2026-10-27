@@ -10,6 +10,7 @@ export type Batch = {
   projectId: string;
   name: string;
   substrate: string;
+  growingMethod: string;
   status: "Inokulering" | "Inkubation" | "Fruktsättning" | "Avslutad";
   date: string;
 };
@@ -73,6 +74,7 @@ export const seed: Data = {
       id: "b1",
       projectId: "p1",
       name: "OST-026",
+      growingMethod: "",
       substrate: "Pastöriserad halm",
       status: "Fruktsättning",
       date: "2026-10-01",
@@ -81,6 +83,7 @@ export const seed: Data = {
       id: "b2",
       projectId: "p1",
       name: "OST-027",
+      growingMethod: "",
       substrate: "Lövträpellets",
       status: "Inkubation",
       date: "2026-10-18",
@@ -89,6 +92,7 @@ export const seed: Data = {
       id: "b3",
       projectId: "p2",
       name: "SHI-012",
+      growingMethod: "",
       substrate: "Lövträsågspån",
       status: "Inkubation",
       date: "2026-09-12",
@@ -97,6 +101,7 @@ export const seed: Data = {
       id: "b4",
       projectId: "p3",
       name: "IGL-004",
+      growingMethod: "",
       substrate: "Lövträpellets",
       status: "Inokulering",
       date: "2026-10-25",
@@ -226,3 +231,13 @@ export const species = [
     url: "https://extension.psu.edu/basic-procedures-for-agaricus-mushroom-growing",
   },
 ];
+
+export const growingMethods = [
+  "Hink",
+  "Påse",
+  "Stock",
+  "Friland",
+  "Bädd",
+  "Låda",
+  "Burk",
+] as const;
