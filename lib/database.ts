@@ -1,3 +1,4 @@
+import { accountSchema } from "./accounts.ts";
 import { DatabaseSync } from "node:sqlite";
 import { mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
@@ -122,6 +123,7 @@ export function openDatabase(filename: string, initialData: Data = seed) {
       throw error;
     }
   }
+  accountSchema(db);
   return db;
 }
 export function readData(db: DatabaseSync): Data {

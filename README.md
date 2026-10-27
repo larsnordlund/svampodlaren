@@ -1,6 +1,6 @@
 # Svampodlaren 🍄
 
-En svensk, mobilanpassad app för svampodling med **Next.js, TypeScript, Tailwind CSS och SQLite**. Den körs lokalt på datorn och fungerar utan internet när installationen är klar. Ingen molntjänst, Supabase-anslutning eller inloggning behövs.
+En svensk, mobilanpassad app för svampodling med **Next.js, TypeScript, Tailwind CSS och SQLite**. Den körs lokalt på datorn och fungerar utan internet när installationen är klar. Ingen molntjänst eller Supabase-anslutning behövs. Användarkonton och inloggning lagras lokalt i SQLite.
 
 ## Kom igång
 
@@ -67,9 +67,17 @@ För en fullständig återställningsbar kopia:
 
 ## Lokal användning och säkerhet
 
-Appen har ingen användarinloggning och är avsedd för en verksamhet på en dator. Startkommandona binder servern till `127.0.0.1`. API:t accepterar bara lokala värdnamn, och skrivningar kräver samma origin. Även servern validerar uppgifter och använder parametriserad SQL, främmande nycklar och databasbegränsningar.
+Vid första starten skapar du själv ett administratörskonto i appen. Alla befintliga poster bevaras och tilldelas det första administratörskontot. Ingen standardinloggning finns. Säkerhetskopiera databasen före uppgradering.
 
-Appen ska inte publiceras direkt på internet eller användas som en fleranvändartjänst. Det skulle kräva autentisering och verksamhetsisolering först. Den här SQLite-versionen behöver en lokal Node.js-process och en beständig datamapp; den är inte avsedd för Vercels tillfälliga filsystem.
+Administratörer öppnar **Administrera register & användare** överst på sidan. Där kan de skapa lokala konton (användare eller administratör), filtrera samtliga fem register efter användare, ändra alla registrerade fält och skapa poster åt en vald användare. Användaren för en befintlig post kan inte bytas; kopplade projekt, batcher, anteckningar och skördar måste tillhöra samma användare. De förinstallerade svamparterna är ett gemensamt referensbibliotek i koden; registrerade egna svampar kan redigeras.
+
+Vanliga användare kan skapa, se och exportera sina egna poster. Endast administratörer får ändra eller radera poster, även via API:t. Administratörer ser och kan exportera alla poster. Den vanliga odlingsvyns nya poster tillhör den inloggade användaren; använd administratörsvyn för att skapa åt andra.
+
+Lösenord lagras med individuella salter och scrypt (N=131072, r=8, p=1). Sessioner har slumpmässiga token, endast SHA-256-hashen lagras i databasen, och webbläsaren får en HttpOnly-cookie med SameSite=Strict. Sessioner löper ut efter sju dagar och återkallas vid utloggning. Fem misslyckade inloggningar per användarnamn ger 15 minuters spärr. Välj minst 12 tecken för lösenord. Automatisk lösenordsåterställning och byte av lösenord ingår ännu inte; spara dina inloggningsuppgifter säkert.
+
+Startkommandona binder servern till `127.0.0.1`. API:t accepterar bara lokala värdnamn, och skrivningar kräver samma origin. Alla dataanrop kräver inloggning, behörigheter kontrolleras på servern och användaruppgifter filtreras där. Servern validerar uppgifter och använder parametriserad SQL, främmande nycklar och databasbegränsningar. Kontona delar samma dator och databasfil; en person med åtkomst till filen kan läsa eller ändra databasen. Säkerhetskopior innehåller därför även lösenordshashar och sessioner och ska skyddas.
+
+Appen är avsedd för lokal användning och ska inte publiceras direkt på internet. Den behöver en lokal Node.js-process och en beständig datamapp och är inte avsedd för Vercels tillfälliga filsystem.
 
 Inga lösenord, API-nycklar eller riktiga användaruppgifter ska läggas i repositoryt. Bildhantering, webbutik, betalningar och molnsynkronisering ingår inte i denna version.
 
@@ -77,6 +85,10 @@ Inga lösenord, API-nycklar eller riktiga användaruppgifter ska läggas i repos
 
 - `app/page.tsx`: de sex vyerna och registreringsformulären.
 - `app/api/data/route.ts`: lokalt GET/POST-API utan cachelagring.
+- `lib/accounts.ts`: konton, lösenord, sessioner, ägarskap och behörigheter.
+- `components/account-gate.tsx`: lokal inloggning och första administratören.
+- `components/admin-records.tsx`: redigering och registrering för andra användare.
+- `app/api/auth/route.ts`: lokalt konto- och sessions-API.
 - `lib/database.ts`: SQLite-schema, versionshantering, engångsdata, läsning och skrivning.
 - `lib/validation.ts`: typad servervalidering för registrering och fasändring.
 - `lib/local-request.ts`: kontroll av lokala värdar och origin.

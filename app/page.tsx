@@ -31,6 +31,8 @@ import { BatchMethodEditor } from "@/components/batch-method-editor";
 import { SpeciesPhoto } from "@/components/species-photo";
 import type { Mutation, DeleteKind } from "@/lib/validation";
 
+import { AccountGate } from "@/components/account-gate";
+
 const navigation = [
   { name: "Översikt", icon: LayoutDashboard },
   { name: "Odlingsprojekt", icon: Sprout },
@@ -127,7 +129,14 @@ function MushroomArt({ variant = 0 }: { variant?: number }) {
   );
 }
 
-export default function Home() {
+export default function Page() {
+  return (
+    <AccountGate>
+      {(user) => <Home admin={user.role === "admin"} />}
+    </AccountGate>
+  );
+}
+function Home({ admin }: { admin: boolean }) {
   const [view, setView] = useState<View>("Översikt");
   const { data, ready, saving, error, save, retry, clearError } =
     useCultivation();
@@ -292,17 +301,18 @@ export default function Home() {
     clearError();
     setDeletion(target);
   }
-  const deleteButton = (kind: DeleteKind, id: string, label: string) => (
-    <button
-      className="delete-entry-button"
-      disabled={saving}
-      aria-label={label}
-      onClick={() => requestDelete(kind, id)}
-    >
-      <Trash2 size={15} />
-      Radera
-    </button>
-  );
+  const deleteButton = (kind: DeleteKind, id: string, label: string) =>
+    admin && (
+      <button
+        className="delete-entry-button"
+        disabled={saving}
+        aria-label={label}
+        onClick={() => requestDelete(kind, id)}
+      >
+        <Trash2 size={15} />
+        Radera
+      </button>
+    );
   const total = data.harvests.reduce((sum, h) => sum + h.weight, 0);
   const match = (...values: string[]) =>
     values
@@ -464,7 +474,7 @@ export default function Home() {
             <BatchMethodEditor
               name={b.name}
               value={b.growingMethod || ""}
-              disabled={!ready || saving}
+              disabled={!admin || !ready || saving}
               onSave={async (growingMethod) => {
                 const saved = await save({
                   kind: "odlingsform",
@@ -480,7 +490,7 @@ export default function Home() {
               <select
                 aria-label={"Odlingsfas för " + b.name}
                 value={b.status}
-                disabled={!ready || saving}
+                disabled={!admin || !ready || saving}
                 onChange={(e) =>
                   void save({
                     kind: "status",
@@ -913,7 +923,7 @@ export default function Home() {
                               formatDate(e.date)
                             }
                             value={e.phase || ""}
-                            disabled={saving}
+                            disabled={!admin || saving}
                             onChange={(event) =>
                               void save({
                                 kind: "anteckningsfas",

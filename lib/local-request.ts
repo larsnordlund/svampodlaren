@@ -1,4 +1,4 @@
-// Restrict the local, login-free API to loopback and same-origin browser requests.
+// Restrict the local API to loopback and same-origin browser requests.
 export function allowedLocalRequest(
   request: Request,
   mutation = false,
