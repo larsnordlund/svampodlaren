@@ -114,13 +114,25 @@ export function mutate(db: DatabaseSync, input: unknown) {
   const mutation = parseMutation(input);
   try {
     switch (mutation.kind) {
-      case "radera-anteckning": {
+      case "radera-anteckning":
+      case "radera-projekt":
+      case "radera-batch":
+      case "radera-skörd":
+      case "radera-svamp": {
+        // Table names come only from this fixed map, never from request input.
+        const tables = {
+          "radera-anteckning": "entries",
+          "radera-projekt": "projects",
+          "radera-batch": "batches",
+          "radera-skörd": "harvests",
+          "radera-svamp": "custom_species",
+        } as const;
         const result = db
-          .prepare("DELETE FROM entries WHERE id=?")
+          .prepare(`DELETE FROM ${tables[mutation.kind]} WHERE id=?`)
           .run(mutation.id);
         if (Number(result.changes) !== 1)
           throw new InputError(
-            "Anteckningen finns inte längre. Ladda om sidan.",
+            "Posten finns inte längre. Ladda om sidan.",
             404,
           );
         break;
@@ -193,6 +205,24 @@ export function mutate(db: DatabaseSync, input: unknown) {
     if (error instanceof Error && /UNIQUE constraint/.test(error.message))
       throw new InputError(
         "Postens ID eller batchnamn finns redan. Välj ett unikt batchnamn eller ladda om sidan.",
+        409,
+      );
+    if (
+      error instanceof Error &&
+      /FOREIGN KEY constraint/.test(error.message) &&
+      mutation.kind === "radera-projekt"
+    )
+      throw new InputError(
+        "Projektet har kopplade batcher. Radera batcherna först.",
+        409,
+      );
+    if (
+      error instanceof Error &&
+      /FOREIGN KEY constraint/.test(error.message) &&
+      mutation.kind === "radera-batch"
+    )
+      throw new InputError(
+        "Batchen har kopplade anteckningar eller skördar. Radera dem först.",
         409,
       );
     if (error instanceof Error && /FOREIGN KEY constraint/.test(error.message))

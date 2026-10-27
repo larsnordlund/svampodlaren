@@ -325,3 +325,109 @@ test("radering tar bara bort vald anteckning och består efter omstart", () => {
     rmSync(directory, { recursive: true, force: true });
   }
 });
+
+test("hela odlingskedjan kan raderas i rätt ordning och förblir borta efter omstart", () => {
+  const directory = mkdtempSync(join(tmpdir(), "svampodlaren-delete-all-"));
+  const filename = join(directory, "cultivation.sqlite");
+  let db = openDatabase(filename, blank);
+  try {
+    mutate(db, project);
+    mutate(db, batch);
+    mutate(db, {
+      kind: "anteckning",
+      record: {
+        id: "delete-note",
+        batchId: batch.record.id,
+        date: "2026-10-27",
+        text: "Testpost",
+        temperature: 20,
+        humidity: 80,
+      },
+    });
+    mutate(db, {
+      kind: "skörd",
+      record: {
+        id: "delete-harvest",
+        batchId: batch.record.id,
+        date: "2026-10-27",
+        weight: 500,
+        flush: 1,
+      },
+    });
+    const before = readData(db);
+    assert.throws(
+      () => mutate(db, { kind: "radera-projekt", id: project.record.id }),
+      (error) => error.status === 409 && /batcher/.test(error.message),
+    );
+    assert.throws(
+      () => mutate(db, { kind: "radera-batch", id: batch.record.id }),
+      (error) =>
+        error.status === 409 &&
+        /anteckningar eller skördar/.test(error.message),
+    );
+    assert.deepEqual(readData(db), before);
+    mutate(db, { kind: "radera-anteckning", id: "delete-note" });
+    assert.throws(
+      () => mutate(db, { kind: "radera-batch", id: batch.record.id }),
+      (error) => error.status === 409,
+    );
+    mutate(db, { kind: "radera-skörd", id: "delete-harvest" });
+    mutate(db, { kind: "radera-batch", id: batch.record.id });
+    mutate(db, { kind: "radera-projekt", id: project.record.id });
+    db.close();
+    db = openDatabase(filename);
+    assert.deepEqual(readData(db), blank);
+  } finally {
+    db.close();
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("radering av egen svamp bevarar befintliga projekts artnamn", () => {
+  const db = openDatabase(":memory:", blank);
+  try {
+    mutate(db, {
+      kind: "svamp",
+      record: { id: "my-species", name: "Min egna art" },
+    });
+    mutate(db, {
+      ...project,
+      record: { ...project.record, species: "Min egna art" },
+    });
+    const before = readData(db);
+    mutate(db, { kind: "radera-svamp", id: "my-species" });
+    const after = readData(db);
+    assert.deepEqual(after.customSpecies, []);
+    assert.deepEqual(after.projects, before.projects);
+    assert.equal(after.projects[0].species, "Min egna art");
+  } finally {
+    db.close();
+  }
+});
+
+test("samtliga raderingsåtgärder validerar ID och nekar saknade poster utan sidverkningar", () => {
+  const db = openDatabase(":memory:");
+  try {
+    const before = readData(db);
+    for (const kind of [
+      "radera-projekt",
+      "radera-batch",
+      "radera-anteckning",
+      "radera-skörd",
+      "radera-svamp",
+    ]) {
+      assert.throws(() => parseMutation({ kind, id: "x' OR 1=1 --" }));
+      assert.throws(
+        () => mutate(db, { kind, id: "missing" }),
+        (error) => error.status === 404,
+      );
+    }
+    assert.throws(
+      () => mutate(db, { kind: "radera-skörd", id: "p1" }),
+      (error) => error.status === 404,
+    );
+    assert.deepEqual(readData(db), before);
+  } finally {
+    db.close();
+  }
+});

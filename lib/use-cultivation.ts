@@ -74,6 +74,7 @@ export function useCultivation() {
     saving,
     error,
     save,
+    clearError: () => setError(""),
     retry: () => setReload((value) => value + 1),
   };
 }

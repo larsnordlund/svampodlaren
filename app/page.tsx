@@ -20,10 +20,10 @@ import {
   Wheat,
   X,
 } from "lucide-react";
-import { species as builtInSpecies, type Batch, type Entry } from "@/lib/data";
+import { species as builtInSpecies, type Batch } from "@/lib/data";
 import { useCultivation } from "@/lib/use-cultivation";
 import { SpeciesPhoto } from "@/components/species-photo";
-import type { Mutation } from "@/lib/validation";
+import type { Mutation, DeleteKind } from "@/lib/validation";
 
 const navigation = [
   { name: "Översikt", icon: LayoutDashboard },
@@ -35,6 +35,15 @@ const navigation = [
 ];
 type View = (typeof navigation)[number]["name"];
 type FormKind = "projekt" | "batch" | "anteckning" | "skörd" | "svamp";
+type DeleteTarget = {
+  kind: DeleteKind;
+  id: string;
+  noun: string;
+  label: string;
+  meta: string;
+  preview: string;
+  blocked: string;
+};
 const titles: Record<View, string> = {
   Översikt: "Här växer något fint.",
   Odlingsprojekt: "Från idé till odling.",
@@ -114,7 +123,8 @@ function MushroomArt({ variant = 0 }: { variant?: number }) {
 
 export default function Home() {
   const [view, setView] = useState<View>("Översikt");
-  const { data, ready, saving, error, save, retry } = useCultivation();
+  const { data, ready, saving, error, save, retry, clearError } =
+    useCultivation();
   const species = [
     ...builtInSpecies,
     ...data.customSpecies.map((s) => ({
@@ -129,9 +139,9 @@ export default function Home() {
   const [form, setForm] = useState<FormKind | null>(null);
   const [notice, setNotice] = useState("");
   const [guide, setGuide] = useState<number | null>(null);
-  const [deleteEntry, setDeleteEntry] = useState<Entry | null>(null);
+  const [deletion, setDeletion] = useState<DeleteTarget | null>(null);
   useEffect(() => {
-    if (!form && guide === null && !deleteEntry) return;
+    if (!form && guide === null && !deletion) return;
     const previous = document.activeElement as HTMLElement | null;
     const dialog = document.querySelector<HTMLElement>('[role="dialog"]');
     const focusable = () =>
@@ -148,8 +158,8 @@ export default function Home() {
     document.body.style.overflow = "hidden";
     const close = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        if (deleteEntry && saving) return;
-        setDeleteEntry(null);
+        if (deletion && saving) return;
+        setDeletion(null);
         setForm(null);
         setGuide(null);
       }
@@ -172,7 +182,7 @@ export default function Home() {
       document.body.style.overflow = overflow;
       previous?.focus();
     };
-  }, [form, guide, deleteEntry, saving]);
+  }, [form, guide, deletion, saving]);
   const go = (next: View) => {
     setView(next);
     setQuery("");
@@ -184,6 +194,103 @@ export default function Home() {
     data.batches.find((b) => b.id === id)?.name ?? "Okänd batch";
   const projectName = (id: string) =>
     data.projects.find((p) => p.id === id)?.name ?? "Okänt projekt";
+  function requestDelete(kind: DeleteKind, id: string) {
+    let target: DeleteTarget | undefined;
+    switch (kind) {
+      case "radera-projekt": {
+        const p = data.projects.find((p) => p.id === id);
+        if (!p) return;
+        const count = data.batches.filter((b) => b.projectId === id).length;
+        target = {
+          kind,
+          id,
+          noun: "projektet",
+          label: "projekt",
+          meta: p.species + " · " + p.location,
+          preview: p.name,
+          blocked: count
+            ? `Projektet har ${count} kopplade batcher. Radera batcherna först.`
+            : "",
+        };
+        break;
+      }
+      case "radera-batch": {
+        const b = data.batches.find((b) => b.id === id);
+        if (!b) return;
+        const entries = data.entries.filter((e) => e.batchId === id).length;
+        const harvests = data.harvests.filter((h) => h.batchId === id).length;
+        target = {
+          kind,
+          id,
+          noun: "batchen",
+          label: "batch",
+          meta: projectName(b.projectId),
+          preview: b.name + " · " + b.substrate,
+          blocked:
+            entries || harvests
+              ? `Batchen har ${entries} anteckningar och ${harvests} skördar. Radera dem först.`
+              : "",
+        };
+        break;
+      }
+      case "radera-anteckning": {
+        const e = data.entries.find((e) => e.id === id);
+        if (!e) return;
+        target = {
+          kind,
+          id,
+          noun: "anteckningen",
+          label: "anteckning",
+          meta: batchName(e.batchId) + " · " + formatDate(e.date),
+          preview: e.text,
+          blocked: "",
+        };
+        break;
+      }
+      case "radera-skörd": {
+        const h = data.harvests.find((h) => h.id === id);
+        if (!h) return;
+        target = {
+          kind,
+          id,
+          noun: "skörden",
+          label: "skörd",
+          meta: batchName(h.batchId) + " · " + formatDate(h.date),
+          preview: `${h.weight.toLocaleString("sv-SE")} g · Skördevåg ${h.flush}`,
+          blocked: "",
+        };
+        break;
+      }
+      case "radera-svamp": {
+        const mushroom = data.customSpecies.find((m) => m.id === id);
+        if (!mushroom) return;
+        target = {
+          kind,
+          id,
+          noun: "svampen",
+          label: "svamp",
+          meta: mushroom.latin || "Egen svamp",
+          preview: mushroom.name,
+          blocked: "",
+        };
+        break;
+      }
+    }
+    setNotice("");
+    clearError();
+    setDeletion(target);
+  }
+  const deleteButton = (kind: DeleteKind, id: string, label: string) => (
+    <button
+      className="delete-entry-button"
+      disabled={saving}
+      aria-label={label}
+      onClick={() => requestDelete(kind, id)}
+    >
+      <Trash2 size={15} />
+      Radera
+    </button>
+  );
   const total = data.harvests.reduce((sum, h) => sum + h.weight, 0);
   const match = (...values: string[]) =>
     values
@@ -352,6 +459,9 @@ export default function Home() {
                 )}
               </select>
             </label>
+            <div className="record-actions record-footer">
+              {deleteButton("radera-batch", b.id, "Radera batch " + b.name)}
+            </div>
           </div>
         </article>
       ));
@@ -629,7 +739,16 @@ export default function Home() {
                       <div className={"project-symbol art-" + (i % 3)}>
                         <Sprout size={26} />
                       </div>
-                      <span className="tiny">Startat {formatDate(p.date)}</span>
+                      <div className="record-actions">
+                        <span className="tiny">
+                          Startat {formatDate(p.date)}
+                        </span>
+                        {deleteButton(
+                          "radera-projekt",
+                          p.id,
+                          "Radera projekt " + p.name,
+                        )}
+                      </div>
                       <h2>{p.name}</h2>
                       <p>
                         {p.species} · {p.location}
@@ -727,23 +846,14 @@ export default function Home() {
                       <div className="entry-content">
                         <div className="entry-heading">
                           <span className="badge">{batchName(e.batchId)}</span>
-                          <button
-                            className="delete-entry-button"
-                            disabled={saving}
-                            aria-label={
-                              "Radera anteckning från " +
+                          {deleteButton(
+                            "radera-anteckning",
+                            e.id,
+                            "Radera anteckning från " +
                               batchName(e.batchId) +
                               ", " +
-                              formatDate(e.date)
-                            }
-                            onClick={() => {
-                              setNotice("");
-                              setDeleteEntry(e);
-                            }}
-                          >
-                            <Trash2 size={15} />
-                            Radera
-                          </button>
+                              formatDate(e.date),
+                          )}
                         </div>
                         <p>{e.text}</p>
                         <div className="readings">
@@ -805,6 +915,17 @@ export default function Home() {
                                   ?.projectId ?? "",
                               )}
                             </small>
+                            {deleteButton(
+                              "radera-skörd",
+                              h.id,
+                              "Radera skörd från " +
+                                batchName(h.batchId) +
+                                ", " +
+                                formatDate(h.date) +
+                                ", " +
+                                h.weight +
+                                " gram",
+                            )}
                           </td>
                           <td>{formatDate(h.date)}</td>
                           <td>Våg {h.flush}</td>
@@ -848,6 +969,13 @@ export default function Home() {
                           >
                             Läs odlingsguiden <ArrowUpRight size={17} />
                           </button>
+                          {"id" in s &&
+                            typeof s.id === "string" &&
+                            deleteButton(
+                              "radera-svamp",
+                              s.id,
+                              "Radera egen svamp " + s.name,
+                            )}
                         </div>
                       </article>
                     ),
@@ -1055,11 +1183,11 @@ export default function Home() {
           </section>
         </div>
       )}
-      {deleteEntry && (
+      {deletion && (
         <div
           className="modal-backdrop"
           onClick={() => {
-            if (!saving) setDeleteEntry(null);
+            if (!saving) setDeletion(null);
           }}
         >
           <section
@@ -1070,18 +1198,25 @@ export default function Home() {
             className="modal"
             onClick={(event) => event.stopPropagation()}
           >
-            <p className="eyebrow">ODLINGSDAGBOK</p>
-            <h2 id="delete-entry-title">Radera anteckningen?</h2>
+            <p className="eyebrow">BEKRÄFTA RADERING</p>
+            <h2 id="delete-entry-title">Radera {deletion.noun}?</h2>
             <p className="subtitle" id="delete-entry-description">
-              Anteckningen tas bort permanent. Det går inte att ångra.
+              Posten tas bort permanent. Det går inte att ångra.
             </p>
             <div className="delete-entry-preview">
-              <span className="tiny">
-                {batchName(deleteEntry.batchId)} ·{" "}
-                {formatDate(deleteEntry.date)}
-              </span>
-              <p>{deleteEntry.text}</p>
+              <span className="tiny">{deletion.meta}</span>
+              <p>{deletion.preview}</p>
             </div>
+            {deletion.blocked && (
+              <p role="alert" className="warning">
+                {deletion.blocked}
+              </p>
+            )}
+            {deletion.kind === "radera-svamp" && (
+              <p className="subtitle">
+                Befintliga odlingsprojekt behåller svampens namn.
+              </p>
+            )}
             {error && (
               <p role="alert" className="warning">
                 {error}
@@ -1089,30 +1224,30 @@ export default function Home() {
             )}
             <div className="modal-actions">
               <button
-                autoFocus
                 className="button secondary"
                 disabled={saving}
-                onClick={() => setDeleteEntry(null)}
+                onClick={() => setDeletion(null)}
               >
                 Avbryt
               </button>
               <button
                 className="button danger"
-                disabled={saving}
+                disabled={saving || !!deletion.blocked}
                 onClick={async () => {
                   if (
                     await save({
-                      kind: "radera-anteckning",
-                      id: deleteEntry.id,
+                      kind: deletion.kind,
+                      id: deletion.id,
                     })
                   ) {
-                    setDeleteEntry(null);
-                    setNotice("Anteckningen har raderats.");
+                    setDeletion(null);
+                    setGuide(null);
+                    setNotice("Posten har raderats.");
                   }
                 }}
               >
                 <Trash2 size={16} />
-                {saving ? "Raderar…" : "Radera anteckning"}
+                {saving ? "Raderar…" : "Radera " + deletion.label}
               </button>
             </div>
           </section>

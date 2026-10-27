@@ -14,8 +14,16 @@ export class InputError extends Error {
     this.status = status;
   }
 }
+export const deleteKinds = [
+  "radera-anteckning",
+  "radera-projekt",
+  "radera-batch",
+  "radera-skörd",
+  "radera-svamp",
+] as const;
+export type DeleteKind = (typeof deleteKinds)[number];
 export type Mutation =
-  | { kind: "radera-anteckning"; id: string }
+  | { kind: DeleteKind; id: string }
   | { kind: "svamp"; record: CustomSpecies }
   | { kind: "projekt"; record: Project }
   | { kind: "batch"; record: Batch }
@@ -107,8 +115,8 @@ function sourceUrl(value: unknown) {
 }
 export function parseMutation(input: unknown): Mutation {
   const body = object(input);
-  if (body.kind === "radera-anteckning")
-    return { kind: "radera-anteckning", id: id(body.id) };
+  if (deleteKinds.includes(body.kind as DeleteKind))
+    return { kind: body.kind as DeleteKind, id: id(body.id) };
   if (body.kind === "status")
     return { kind: "status", id: id(body.id), status: status(body.status) };
   const r = object(body.record);

@@ -28,6 +28,14 @@ För utveckling: `pnpm dev`.
 
 Bibliotekets inbyggda texter och artfotografier fungerar offline. De nio inbyggda arterna samt kantarell har lokala WebP-bilder som visas på bibliotekskort och i guider. Egna svampar utan foto visar ”Bild saknas”. Bildkällor, fotografer och licenser finns i `public/images/mushrooms/CREDITS.md` och vid bilderna i appen. Länkar till externa källor kräver internet.
 
+## Radera registrerade poster
+
+Alla register där du kan skapa egna poster har en **Radera**-knapp: projekt, batcher, dagboksanteckningar, skördar och egna svampar. Du får se vilken post som avses och bekräftar innan något tas bort. Inbyggda arter är fasta biblioteksposter och raderas inte.
+
+Projekt med kopplade batcher kan inte raderas. Batcher med anteckningar eller skördar kan inte heller raderas. Ta först bort de kopplade posterna. Databasens främmande nycklar upprätthåller detta även om en annan flik har ändrat uppgifterna.
+
+Radering av en egen svamp tar bort biblioteksposten; befintliga projekt behåller svampnamnet i sin odlingshistorik. Radering är permanent, sparas i SQLite och räknas om i översikten och exporten.
+
 ## Lokal databas och exempeldata
 
 Appen skapar automatiskt **`data/svampodlaren.sqlite`** vid första användningen. Då läggs exempelprojekt, batcher, observationer och skördar in en gång. Därefter sparas alla ändringar permanent i SQLite. Exempeldata läggs inte tillbaka vid omstart.

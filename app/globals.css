@@ -1504,3 +1504,18 @@ td small {
   max-height: 180px;
   overflow: auto;
 }
+
+.record-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.record-footer {
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+td .delete-entry-button {
+  margin-top: 8px;
+  padding-left: 0;
+}
