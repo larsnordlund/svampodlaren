@@ -171,3 +171,9 @@ Under **Odlingsdagbok → Ny anteckning** kan du välja flera bilder i fältet *
 På en sparad anteckning öppnar **Lägg till / ändra bilder** bildredigeringen. Lägg till eller ta bort bilder och tryck **Spara dagboksbilder**. **Avbryt** återställer osparade ändringar. Klicka på en bild i anteckningen för större visning; stäng med **Stäng bild** eller Escape. Bildfältet finns även vid registrering och redigering av dagboksanteckningar i registervyn.
 
 Alla inloggade användare kan se bilderna. Bara ägaren eller administratören får ändra dem. Bilder lagras som en validerad JSON-lista i `entries.images` i SQLite och följer med vid JSON-export, fullständig backup och odlingsbackup för mejl. Gamla anteckningar får en tom bildlista utan att övriga uppgifter ändras. Att uppdatera bilder direkt på anteckningen ändrar inte dess text, datum eller odlingsfas.
+
+## Alla dagboksanteckningar för en batch
+
+I **Odlingsdagbok** väljer du **Visa anteckningar för batch** för att visa hela historiken för en viss batch, även avslutade batcher. Alternativen visar batchnamn, behållare, projekt och antal anteckningar. Listan visas med senaste datum först, inklusive bilder och odlingsfas. Väljer du en annan batch rensas sökningen så att alla dess anteckningar kommer fram. Sökfältet kan sedan användas inom batchen; räknaren visar antal träffar av totalt antal anteckningar för vald batch. **Visa alla batcher** återställer både batchfilter och sökning.
+
+På varje batchkort finns också **Visa dagbok (antal)** som öppnar dagboken direkt med rätt batch vald. Om du skapar en ny anteckning med en egen batch vald föreslås den batchen automatiskt. Behörigheterna för att skapa och ändra anteckningar är oförändrade.

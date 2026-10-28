@@ -168,6 +168,7 @@ function Home({ user }: { user: User }) {
   const [menu, setMenu] = useState(false);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("Alla");
+  const [journalBatchId, setJournalBatchId] = useState("");
   const [form, setForm] = useState<FormKind | null>(null);
   const [entryBatchId, setEntryBatchId] = useState("");
   const [entryPhase, setEntryPhase] = useState<Batch["status"] | "">("");
@@ -221,6 +222,7 @@ function Home({ user }: { user: User }) {
     setView(next);
     setQuery("");
     setFilter("Alla");
+    setJournalBatchId("");
     setNotice("");
     setMenu(false);
   };
@@ -336,10 +338,18 @@ function Home({ user }: { user: User }) {
       .join(" ")
       .toLocaleLowerCase("sv")
       .includes(query.toLocaleLowerCase("sv"));
+  const journalBatchEntries = data.entries.filter(
+    (entry) => !journalBatchId || entry.batchId === journalBatchId,
+  );
+  const journalEntries = journalBatchEntries
+    .filter((entry) => match(entry.text, batchName(entry.batchId), entry.phase))
+    .sort((a, b) => b.date.localeCompare(a.date));
   const open = (kind: FormKind) => {
     if (kind === "anteckning") {
-      setEntryBatchId(myBatches[0]?.id || "");
-      setEntryPhase(myBatches[0]?.status || "");
+      const batch =
+        myBatches.find((b) => b.id === journalBatchId) || myBatches[0];
+      setEntryBatchId(batch?.id || "");
+      setEntryPhase(batch?.status || "");
     }
     setForm(kind);
     setNotice("");
@@ -528,6 +538,19 @@ function Home({ user }: { user: User }) {
               </select>
             </label>
             <div className="record-actions record-footer">
+              <button
+                className="text-link"
+                aria-label={"Visa dagbok för " + b.name}
+                onClick={() => {
+                  go("Odlingsdagbok");
+                  setJournalBatchId(b.id);
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                }}
+              >
+                <BookOpen size={16} />
+                Visa dagbok (
+                {data.entries.filter((entry) => entry.batchId === b.id).length})
+              </button>
               {deleteButton("radera-batch", b.id, "Radera batch " + b.name)}
             </div>
           </div>
@@ -900,99 +923,156 @@ function Home({ user }: { user: User }) {
           )}
           {view === "Odlingsdagbok" && (
             <>
+              <section
+                className="journal-filter"
+                aria-label="Filtrera dagboken"
+              >
+                <label>
+                  Visa anteckningar för batch
+                  <select
+                    aria-label="Visa anteckningar för batch"
+                    value={journalBatchId}
+                    disabled={!ready}
+                    onChange={(event) => {
+                      setJournalBatchId(event.target.value);
+                      setQuery("");
+                    }}
+                  >
+                    <option value="">Alla batcher</option>
+                    {data.batches.map((batch) => {
+                      const count = data.entries.filter(
+                        (entry) => entry.batchId === batch.id,
+                      ).length;
+                      return (
+                        <option key={batch.id} value={batch.id}>
+                          {batchName(batch.id)} – {projectName(batch.projectId)}{" "}
+                          ({count} {count === 1 ? "anteckning" : "anteckningar"}
+                          )
+                        </option>
+                      );
+                    })}
+                  </select>
+                </label>
+                {(journalBatchId || query) && (
+                  <button
+                    className="button secondary"
+                    onClick={() => {
+                      setJournalBatchId("");
+                      setQuery("");
+                    }}
+                  >
+                    Visa alla batcher
+                  </button>
+                )}
+                <p role="status">
+                  Visar {journalEntries.length} av {journalBatchEntries.length}{" "}
+                  {journalBatchEntries.length === 1
+                    ? "anteckning"
+                    : "anteckningar"}
+                  {journalBatchId
+                    ? " för " + batchName(journalBatchId)
+                    : " från alla batcher"}
+                  .
+                </p>
+              </section>
               <SearchBox query={query} setQuery={setQuery} />
               <div className="journal-list">
-                {[...data.entries]
-                  .sort((a, b) => b.date.localeCompare(a.date))
-                  .filter((e) => match(e.text, batchName(e.batchId), e.phase))
-                  .map((e) => (
-                    <article className="panel journal-entry" key={e.id}>
-                      <div className="entry-date">
-                        <strong>
-                          {new Date(e.date + "T12:00:00Z").getUTCDate()}
-                        </strong>
+                {journalEntries.map((e) => (
+                  <article className="panel journal-entry" key={e.id}>
+                    <div className="entry-date">
+                      <strong>
+                        {new Date(e.date + "T12:00:00Z").getUTCDate()}
+                      </strong>
+                      <span>
+                        {formatDate(e.date).split(" ").slice(1).join(" ")}
+                      </span>
+                    </div>
+                    <div className="entry-content">
+                      <div className="entry-heading">
+                        <span className="badge">{batchName(e.batchId)}</span>
+                        {deleteButton(
+                          "radera-anteckning",
+                          e.id,
+                          "Radera anteckning från " +
+                            batchName(e.batchId) +
+                            ", " +
+                            formatDate(e.date),
+                        )}
+                      </div>
+                      <p>{e.text}</p>
+                      {e.images?.length ? (
+                        <JournalGallery
+                          images={e.images}
+                          label={"anteckningen " + formatDate(e.date)}
+                        />
+                      ) : null}
+                      {canEdit(e.id) && (
+                        <JournalImagesEditor
+                          images={e.images}
+                          disabled={saving}
+                          onSave={async (images) => {
+                            const success = await save({
+                              kind: "anteckningsbilder",
+                              id: e.id,
+                              images,
+                            });
+                            if (success)
+                              setNotice("Dagboksbilderna har sparats.");
+                            return success;
+                          }}
+                        />
+                      )}
+                      <label className="status-label journal-phase-label">
+                        Odlingsfas vid anteckningen
+                        <select
+                          aria-label={
+                            "Odlingsfas för anteckning från " +
+                            batchName(e.batchId) +
+                            ", " +
+                            formatDate(e.date)
+                          }
+                          value={e.phase || ""}
+                          disabled={!canEdit(e.id) || saving}
+                          onChange={(event) =>
+                            void save({
+                              kind: "anteckningsfas",
+                              id: e.id,
+                              phase: event.target.value as Batch["status"] | "",
+                            })
+                          }
+                        >
+                          <option value="">Ej angiven</option>
+                          {cultivationPhases.map((phase) => (
+                            <option key={phase}>{phase}</option>
+                          ))}
+                        </select>
+                      </label>
+                      <div className="readings">
                         <span>
-                          {formatDate(e.date).split(" ").slice(1).join(" ")}
+                          <Thermometer size={16} />
+                          {e.temperature} °C
+                        </span>
+                        <span>
+                          <Droplets size={16} />
+                          {e.humidity} % luftfuktighet
                         </span>
                       </div>
-                      <div className="entry-content">
-                        <div className="entry-heading">
-                          <span className="badge">{batchName(e.batchId)}</span>
-                          {deleteButton(
-                            "radera-anteckning",
-                            e.id,
-                            "Radera anteckning från " +
-                              batchName(e.batchId) +
-                              ", " +
-                              formatDate(e.date),
-                          )}
-                        </div>
-                        <p>{e.text}</p>
-                        {e.images?.length ? (
-                          <JournalGallery
-                            images={e.images}
-                            label={"anteckningen " + formatDate(e.date)}
-                          />
-                        ) : null}
-                        {canEdit(e.id) && (
-                          <JournalImagesEditor
-                            images={e.images}
-                            disabled={saving}
-                            onSave={async (images) => {
-                              const success = await save({
-                                kind: "anteckningsbilder",
-                                id: e.id,
-                                images,
-                              });
-                              if (success)
-                                setNotice("Dagboksbilderna har sparats.");
-                              return success;
-                            }}
-                          />
-                        )}
-                        <label className="status-label journal-phase-label">
-                          Odlingsfas vid anteckningen
-                          <select
-                            aria-label={
-                              "Odlingsfas för anteckning från " +
-                              batchName(e.batchId) +
-                              ", " +
-                              formatDate(e.date)
-                            }
-                            value={e.phase || ""}
-                            disabled={!canEdit(e.id) || saving}
-                            onChange={(event) =>
-                              void save({
-                                kind: "anteckningsfas",
-                                id: e.id,
-                                phase: event.target.value as
-                                  Batch["status"] | "",
-                              })
-                            }
-                          >
-                            <option value="">Ej angiven</option>
-                            {cultivationPhases.map((phase) => (
-                              <option key={phase}>{phase}</option>
-                            ))}
-                          </select>
-                        </label>
-                        <div className="readings">
-                          <span>
-                            <Thermometer size={16} />
-                            {e.temperature} °C
-                          </span>
-                          <span>
-                            <Droplets size={16} />
-                            {e.humidity} % luftfuktighet
-                          </span>
-                        </div>
-                      </div>
-                    </article>
-                  ))}
+                    </div>
+                  </article>
+                ))}
               </div>
-              {!data.entries.some((e) =>
-                match(e.text, batchName(e.batchId), e.phase),
-              ) && <Empty />}
+              {journalEntries.length === 0 && (
+                <div className="empty-state">
+                  <BookOpen size={28} />
+                  <p>
+                    {query
+                      ? "Inga anteckningar matchar sökningen. Rensa sökfältet för att visa alla anteckningar för vald batch."
+                      : journalBatchId
+                        ? "Det finns inga dagboksanteckningar för den här batchen ännu."
+                        : "Det finns inga dagboksanteckningar ännu."}
+                  </p>
+                </div>
+              )}
             </>
           )}
           {view === "Skördar" && (

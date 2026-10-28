@@ -1792,3 +1792,40 @@ td .delete-entry-button {
 .journal-photo-dialog > p {
   text-align: center;
 }
+
+.journal-filter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+.journal-filter label {
+  display: grid;
+  gap: 7px;
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+}
+.journal-filter select {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: white;
+  color: var(--ink);
+}
+.journal-filter p {
+  flex-basis: 100%;
+  color: var(--muted);
+  font-size: 13px;
+}
+@media (max-width: 640px) {
+  .journal-filter label {
+    flex-basis: 100%;
+  }
+  .record-footer {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+}
