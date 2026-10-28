@@ -1711,19 +1711,38 @@ td .delete-entry-button {
   border-radius: 12px;
   background: var(--beige);
 }
-.species-image-editor {
+.species-card-editor {
   margin: 14px 0;
 }
-.species-image-editor summary {
+.species-card-editor summary {
   cursor: pointer;
   font-weight: 600;
   color: var(--forest);
   padding: 8px 0;
 }
-.species-image-editor fieldset {
+.species-card-editor fieldset {
   border: 0;
   padding: 0;
   display: grid;
   gap: 12px;
   min-width: 0;
+}
+
+.species-card-editor label {
+  display: grid;
+  gap: 7px;
+}
+.species-card-editor input:not([type="hidden"]),
+.species-card-editor textarea {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: white;
+}
+.species-card-editor textarea {
+  resize: vertical;
+}
+.species-card-editor a {
+  overflow-wrap: anywhere;
 }

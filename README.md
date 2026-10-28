@@ -150,10 +150,16 @@ node --experimental-strip-types scripts/weekly-backup.mjs --manual
 
 I **Svampbibliotek → Lägg till svamp** kan du välja ett foto under **Bild (valfritt)**. JPG, PNG och WebP upp till 10 MB stöds. Webbläsaren anpassar fotot till högst 1440 pixlar och komprimerar det som JPEG (högst 1 MB), med förhandsvisning före sparande. Den omritade bilden sparas utan originalfilens metadata.
 
-För en befintlig egen svamp: öppna **Ändra bild** på bibliotekskortet, välj ett annat foto eller tryck **Ta bort bild**, och sedan **Spara bild**. Bildfältet finns även vid registrering och redigering av **Egna svampar** i registervyn. Användare får ändra egna bilder och administratörer får ändra allas. De inbyggda arternas referensbilder behålls.
+För en befintlig egen svamp: öppna **Redigera kort** på bibliotekskortet, välj ett annat foto eller tryck **Ta bort bild**, och sedan **Spara kort**. Bildfältet finns även vid registrering och redigering av **Egna svampar** i registervyn. Användare får ändra egna bilder och administratörer får ändra allas. De inbyggda arternas referensbilder behålls.
 
 Bilderna lagras i kolumnen `custom_species.image` i SQLite och fungerar utan internet. De följer med i JSON-export, fullständig databasbackup och odlingsfilen för mejl. Inga separata uppladdningsmappar behöver flyttas vid installation på Raspberry Pi. Servern validerar bildformat, storlek och dimensioner; SVG och externa bildadresser godtas inte som uppladdning. Befintliga databaser får ett tomt bildfält utan att gamla uppgifter ändras.
 
 ### Ändra ”Egen svamp” och ”Egen bild”
 
-För egna svampar kan du redigera **Etikett på svampkortet** (högst 60 tecken) och **Bildtext / fotograf** (högst 160 tecken). Fälten finns vid registrering, i registerredigeringen och under **Ändra bild och texter** direkt på svampkortet. Tomma fält döljer respektive text. Standardtexterna är ”Egen svamp” och ”Egen bild” för äldre poster och nya formulär. Bildtexten visas för uppladdade bilder både på kortet och i odlingsguiden. De inbyggda referensbildernas fotograf- och licensangivelser behålls. Texterna lagras i SQLite, följer med i backup och får ändras av ägaren eller administratör.
+För egna svampar kan du redigera **Etikett på svampkortet** (högst 60 tecken) och **Bildtext / fotograf** (högst 160 tecken). Fälten finns vid registrering, i registerredigeringen och under **Redigera kort** direkt på svampkortet. Tomma fält döljer respektive text. Standardtexterna är ”Egen svamp” och ”Egen bild” för äldre poster och nya formulär. Bildtexten visas för uppladdade bilder både på kortet och i odlingsguiden. De inbyggda referensbildernas fotograf- och licensangivelser behålls. Texterna lagras i SQLite, följer med i backup och får ändras av ägaren eller administratör.
+
+### Redigera hela svampkortet och lägga till guidelänk senare
+
+Öppna **Redigera kort** direkt på en egen svamp i biblioteket. Där kan ägaren eller administratören ändra namn, vetenskapligt namn, beskrivning, odlingsråd, valfri guidelänk, bild, etikett och bildtext. Ändringarna sparas tillsammans med **Spara kort**; **Avbryt** återställer osparade uppgifter. Om svampen byter namn rensas aktuell sökning så att det uppdaterade kortet förblir synligt.
+
+**Länk till odlingsguide** kan lämnas tom vid registreringen och läggas till eller ändras senare. När en http-/https-länk har sparats visas **Läs odlingsguiden** på det egna kortet och öppnar länken i en ny flik. **Visa uppgifter och odlingsråd** öppnar fortfarande de sparade texterna i appen. Tom länk tar bort den externa guideknappen. Inbyggda referenskort och deras käll-/licensangivelser behålls.

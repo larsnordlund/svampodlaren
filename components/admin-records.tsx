@@ -59,7 +59,7 @@ const labels: Record<string, string> = {
   latin: "Vetenskapligt namn",
   description: "Beskrivning",
   guide: "Odlingsråd",
-  url: "Källänk",
+  url: "Länk till odlingsguide (valfritt)",
 };
 type Row = Record<string, string | number> & { id: string };
 export function AdminRecords({ currentUser }: { currentUser: User }) {

@@ -28,7 +28,7 @@ import {
 } from "@/lib/data";
 import { useCultivation } from "@/lib/use-cultivation";
 import { BatchMethodEditor } from "@/components/batch-method-editor";
-import { SpeciesImageEditor } from "@/components/species-image-editor";
+import { SpeciesCardEditor } from "@/components/species-card-editor";
 import { SpeciesLabelFields } from "@/components/species-label-fields";
 import { SpeciesImagePicker } from "@/components/species-image-picker";
 import { SpeciesPhoto } from "@/components/species-photo";
@@ -1042,7 +1042,10 @@ function Home({ user }: { user: User }) {
                 {species.map(
                   (s, i) =>
                     match(s.name, s.latin) && (
-                      <article className="species-card" key={s.name}>
+                      <article
+                        className="species-card"
+                        key={"id" in s ? String(s.id) : s.name}
+                      >
                         <SpeciesPhoto
                           name={s.name}
                           photoCaption={
@@ -1059,33 +1062,49 @@ function Home({ user }: { user: User }) {
                           <h2>{s.name}</h2>
                           <em>{s.latin}</em>
                           <p>{s.description}</p>
+                          {"id" in s && s.url && (
+                            <a
+                              className="text-link"
+                              href={s.url}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              Läs odlingsguiden <ArrowUpRight size={17} />
+                            </a>
+                          )}
                           <button
                             className="text-link"
                             onClick={() => setGuide(i)}
                           >
-                            Läs odlingsguiden <ArrowUpRight size={17} />
+                            {"id" in s
+                              ? "Visa uppgifter och odlingsråd"
+                              : "Läs odlingsguiden"}{" "}
+                            <ArrowUpRight size={17} />
                           </button>
+                          {"id" in s && !s.url && (
+                            <p className="tiny">
+                              Guidelänk kan läggas till senare.
+                            </p>
+                          )}
                           {data.customSpecies
                             .filter(
                               (own) => own.name === s.name && canEdit(own.id),
                             )
                             .map((own) => (
-                              <SpeciesImageEditor
+                              <SpeciesCardEditor
                                 key={own.id}
-                                image={own.image}
-                                badgeText={own.badgeText}
-                                photoCaption={own.photoCaption}
+                                species={own}
                                 disabled={saving}
-                                onSave={async (image, labels) => {
+                                onSave={async (record) => {
                                   const success = await save({
                                     kind: "svamp",
-                                    record: { ...own, image, ...labels },
+                                    record,
                                     edit: true,
                                   });
-                                  if (success)
-                                    setNotice(
-                                      "Bilden och texterna har sparats.",
-                                    );
+                                  if (success) {
+                                    setNotice("Svampkortet har sparats.");
+                                    if (own.name !== record.name) setQuery("");
+                                  }
                                   return success;
                                 }}
                               />
@@ -1174,7 +1193,7 @@ function Home({ user }: { user: User }) {
                       <textarea name="guide" rows={5} maxLength={4000} />
                     </label>
                     <Field
-                      label="Källänk (valfritt)"
+                      label="Länk till odlingsguide (valfritt)"
                       name="url"
                       type="url"
                       placeholder="https://…"
@@ -1475,7 +1494,10 @@ function Home({ user }: { user: User }) {
                 target="_blank"
                 rel="noreferrer"
               >
-                Källa och vidare läsning <ArrowUpRight size={17} />
+                {guide < builtInSpecies.length
+                  ? "Källa och vidare läsning"
+                  : "Öppna odlingsguide"}{" "}
+                <ArrowUpRight size={17} />
               </a>
             )}
           </section>
