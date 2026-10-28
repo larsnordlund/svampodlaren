@@ -44,3 +44,13 @@ export function validateSpeciesImage(value: unknown): string {
     );
   return value;
 }
+
+export function validateJournalImages(value: unknown): string[] {
+  if (!Array.isArray(value) || value.length > 6)
+    throw new InputError("Välj högst 6 bilder per dagboksanteckning.");
+  return value.map((image) => {
+    if (typeof image !== "string" || !image)
+      throw new InputError("En dagboksbild är ogiltig.");
+    return validateSpeciesImage(image);
+  });
+}

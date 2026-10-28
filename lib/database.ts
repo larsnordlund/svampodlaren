@@ -39,6 +39,7 @@ export function openDatabase(filename: string, initialData: Data = seed) {
           CREATE TABLE entries (
             id TEXT PRIMARY KEY NOT NULL, batchId TEXT NOT NULL REFERENCES batches(id), date TEXT NOT NULL,
             text TEXT NOT NULL CHECK(length(trim(text)) BETWEEN 1 AND 2000),
+            images TEXT NOT NULL DEFAULT '[]' CHECK(json_valid(images) AND json_type(images)='array' AND length(images)<=8400100),
             phase TEXT NOT NULL DEFAULT '' CHECK(phase IN ('','Inokulering','Inkubation','Fruktsättning','Avslutad')),
             temperature REAL NOT NULL CHECK(temperature BETWEEN -20 AND 60), humidity REAL NOT NULL CHECK(humidity BETWEEN 0 AND 100)
           ) STRICT;
@@ -135,6 +136,15 @@ export function openDatabase(filename: string, initialData: Data = seed) {
       db.exec(
         "ALTER TABLE custom_species ADD COLUMN image TEXT NOT NULL DEFAULT '' CHECK(length(image)<=1400000)",
       );
+    if (
+      !db
+        .prepare("PRAGMA table_info(entries)")
+        .all()
+        .some((column) => column.name === "images")
+    )
+      db.exec(
+        "ALTER TABLE entries ADD COLUMN images TEXT NOT NULL DEFAULT '[]' CHECK(json_valid(images) AND json_type(images)='array' AND length(images)<=8400100)",
+      );
     const speciesColumns = db
       .prepare("PRAGMA table_info(custom_species)")
       .all();
@@ -176,7 +186,13 @@ export function readData(db: DatabaseSync): Data {
       batches: db.prepare("SELECT * FROM batches ORDER BY rowid").all(),
       entries: db
         .prepare("SELECT * FROM entries ORDER BY date DESC, rowid DESC")
-        .all(),
+        .all()
+        .map((row) => {
+          const images = JSON.parse(String(row.images));
+          if (images.length) row.images = images;
+          else delete row.images;
+          return row;
+        }),
       harvests: db.prepare("SELECT * FROM harvests ORDER BY rowid").all(),
     } as unknown as Data;
     db.exec("COMMIT");
@@ -190,6 +206,17 @@ export function mutate(db: DatabaseSync, input: unknown) {
   const mutation = parseMutation(input);
   try {
     switch (mutation.kind) {
+      case "anteckningsbilder": {
+        const result = db
+          .prepare("UPDATE entries SET images=? WHERE id=?")
+          .run(JSON.stringify(mutation.images), mutation.id);
+        if (Number(result.changes) !== 1)
+          throw new InputError(
+            "Anteckningen finns inte längre. Ladda om sidan.",
+            404,
+          );
+        break;
+      }
       case "anteckningsfas": {
         const result = db
           .prepare("UPDATE entries SET phase=? WHERE id=?")
@@ -278,7 +305,7 @@ export function mutate(db: DatabaseSync, input: unknown) {
       case "anteckning": {
         const r = mutation.record;
         db.prepare(
-          "INSERT INTO entries(id,batchId,date,text,temperature,humidity,phase) VALUES(?,?,?,?,?,?,?)",
+          "INSERT INTO entries(id,batchId,date,text,temperature,humidity,phase,images) VALUES(?,?,?,?,?,?,?,?)",
         ).run(
           r.id,
           r.batchId,
@@ -287,6 +314,7 @@ export function mutate(db: DatabaseSync, input: unknown) {
           r.temperature,
           r.humidity,
           r.phase,
+          JSON.stringify(r.images || []),
         );
         break;
       }

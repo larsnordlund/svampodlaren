@@ -16,6 +16,7 @@ export type Batch = Ownership & {
   date: string;
 };
 export type Entry = Ownership & {
+  images?: string[];
   id: string;
   batchId: string;
   date: string;

@@ -269,7 +269,10 @@ export function ownedMutation(db: DatabaseSync, user: User, input: unknown) {
           ]);
         db.prepare(
           `UPDATE ${table} SET ${fields.map(([k]) => `${k}=?`).join(",")} WHERE id=?`,
-        ).run(...fields.map(([, v]) => v), r.id);
+        ).run(
+          ...fields.map(([, v]) => (Array.isArray(v) ? JSON.stringify(v) : v)),
+          r.id,
+        );
       } else {
         mutate(db, m);
         db.prepare("INSERT INTO record_owners VALUES(?,?)").run(r.id, owner);

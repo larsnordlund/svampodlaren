@@ -9,7 +9,10 @@ import {
 
 import { InputError } from "./input-error.ts";
 export { InputError } from "./input-error.ts";
-import { validateSpeciesImage } from "./species-image.ts";
+import {
+  validateSpeciesImage,
+  validateJournalImages,
+} from "./species-image.ts";
 export const deleteKinds = [
   "radera-anteckning",
   "radera-projekt",
@@ -19,6 +22,7 @@ export const deleteKinds = [
 ] as const;
 export type DeleteKind = (typeof deleteKinds)[number];
 export type Mutation =
+  | { kind: "anteckningsbilder"; id: string; images: string[] }
   | { kind: "anteckningsfas"; id: string; phase: Entry["phase"] }
   | { kind: "odlingsform"; id: string; growingMethod: string }
   | { kind: DeleteKind; id: string }
@@ -113,6 +117,12 @@ function sourceUrl(value: unknown) {
 }
 export function parseMutation(input: unknown): Mutation {
   const body = object(input);
+  if (body.kind === "anteckningsbilder")
+    return {
+      kind: "anteckningsbilder",
+      id: id(body.id),
+      images: validateJournalImages(body.images),
+    };
   if (body.kind === "anteckningsfas")
     return {
       kind: "anteckningsfas",
@@ -190,6 +200,9 @@ export function parseMutation(input: unknown): Mutation {
           ...base,
           batchId: id(r.batchId),
           text: text(r.text, "Observation", 2000),
+          ...(r.images !== undefined
+            ? { images: validateJournalImages(r.images) }
+            : {}),
           phase: r.phase === undefined || r.phase === "" ? "" : status(r.phase),
           temperature: number(r.temperature, "Temperatur", -20, 60),
           humidity: number(r.humidity, "Luftfuktighet", 0, 100),

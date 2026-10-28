@@ -163,3 +163,11 @@ För egna svampar kan du redigera **Etikett på svampkortet** (högst 60 tecken)
 Öppna **Redigera kort** direkt på en egen svamp i biblioteket. Där kan ägaren eller administratören ändra namn, vetenskapligt namn, beskrivning, odlingsråd, valfri guidelänk, bild, etikett och bildtext. Ändringarna sparas tillsammans med **Spara kort**; **Avbryt** återställer osparade uppgifter. Om svampen byter namn rensas aktuell sökning så att det uppdaterade kortet förblir synligt.
 
 **Länk till odlingsguide** kan lämnas tom vid registreringen och läggas till eller ändras senare. När en http-/https-länk har sparats visas **Läs odlingsguiden** på det egna kortet och öppnar länken i en ny flik. **Visa uppgifter och odlingsråd** öppnar fortfarande de sparade texterna i appen. Tom länk tar bort den externa guideknappen. Inbyggda referenskort och deras käll-/licensangivelser behålls.
+
+## Bilder i odlingsdagboken
+
+Under **Odlingsdagbok → Ny anteckning** kan du välja flera bilder i fältet **Bilder till anteckningen**. Högst sex bilder per anteckning stöds, JPG/PNG/WebP upp till 10 MB per original. Bilderna anpassas lokalt till JPEG, högst 1440 pixlar och 1 MB per bild, utan originalfilernas metadata.
+
+På en sparad anteckning öppnar **Lägg till / ändra bilder** bildredigeringen. Lägg till eller ta bort bilder och tryck **Spara dagboksbilder**. **Avbryt** återställer osparade ändringar. Klicka på en bild i anteckningen för större visning; stäng med **Stäng bild** eller Escape. Bildfältet finns även vid registrering och redigering av dagboksanteckningar i registervyn.
+
+Alla inloggade användare kan se bilderna. Bara ägaren eller administratören får ändra dem. Bilder lagras som en validerad JSON-lista i `entries.images` i SQLite och följer med vid JSON-export, fullständig backup och odlingsbackup för mejl. Gamla anteckningar får en tom bildlista utan att övriga uppgifter ändras. Att uppdatera bilder direkt på anteckningen ändrar inte dess text, datum eller odlingsfas.

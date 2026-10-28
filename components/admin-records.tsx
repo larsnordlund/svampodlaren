@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState, type FormEvent } from "react";
 import type { User, RecordKind } from "@/lib/accounts";
+import { JournalImagesPicker } from "./journal-images";
 import { SpeciesLabelFields } from "./species-label-fields";
 import { SpeciesImagePicker } from "./species-image-picker";
 import { UserManagement } from "./user-management";
@@ -61,7 +62,7 @@ const labels: Record<string, string> = {
   guide: "Odlingsråd",
   url: "Länk till odlingsguide (valfritt)",
 };
-type Row = Record<string, string | number> & { id: string };
+type Row = Record<string, string | number | string[]> & { id: string };
 export function AdminRecords({ currentUser }: { currentUser: User }) {
   const [imageBusy, setImageBusy] = useState(false);
   const isAdmin = currentUser.role === "admin";
@@ -120,6 +121,8 @@ export function AdminRecords({ currentUser }: { currentUser: User }) {
     try {
       const values = Object.fromEntries(new FormData(form));
       const row: Row = { id: record?.id || crypto.randomUUID(), ...values };
+      if (kind === "anteckning")
+        row.images = JSON.parse(String(values.images || "[]"));
       for (const key of ["temperature", "humidity", "weight", "flush"])
         if (key in row) row[key] = Number(row[key]);
       const r = await fetch("/api/data", {
@@ -241,6 +244,14 @@ export function AdminRecords({ currentUser }: { currentUser: User }) {
             onSubmit={submit}
           >
             <fieldset disabled={busy}>
+              {kind === "anteckning" && (
+                <JournalImagesPicker
+                  initialImages={
+                    Array.isArray(record?.images) ? record.images : []
+                  }
+                  onBusyChange={setImageBusy}
+                />
+              )}
               {kind === "svamp" && (
                 <SpeciesImagePicker
                   initialImage={String(record?.image || "")}

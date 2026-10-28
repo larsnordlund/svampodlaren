@@ -1746,3 +1746,49 @@ td .delete-entry-button {
 .species-card-editor a {
   overflow-wrap: anywhere;
 }
+.journal-image-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 12px;
+  margin: 12px 0;
+}
+.journal-image-grid figure {
+  margin: 0;
+  display: grid;
+  gap: 8px;
+}
+.journal-image-grid img {
+  display: block;
+  width: 100%;
+  height: 150px;
+  object-fit: cover;
+  border-radius: 10px;
+}
+.journal-thumbnail {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  max-width: 280px;
+}
+.journal-photo-dialog {
+  border: 0;
+  border-radius: 16px;
+  padding: 18px;
+  background: var(--paper);
+  max-width: 94vw;
+  max-height: 94vh;
+  color: var(--ink);
+}
+.journal-photo-dialog::backdrop {
+  background: #15291dcc;
+}
+.journal-photo-dialog > img {
+  display: block;
+  max-width: 86vw;
+  max-height: 72vh;
+  object-fit: contain;
+  margin: 14px auto;
+}
+.journal-photo-dialog > p {
+  text-align: center;
+}

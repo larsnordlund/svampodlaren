@@ -45,7 +45,7 @@ export async function POST(request: Request) {
   if (!request.headers.get("content-type")?.startsWith("application/json"))
     return Response.json({ error: "JSON krävs." }, { status: 415, headers });
   const body = await request.text();
-  if (body.length > 1420000)
+  if (body.length > 8500000)
     return Response.json(
       { error: "Posten är för stor." },
       { status: 413, headers },

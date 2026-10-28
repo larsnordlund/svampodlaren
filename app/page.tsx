@@ -28,6 +28,11 @@ import {
 } from "@/lib/data";
 import { useCultivation } from "@/lib/use-cultivation";
 import { BatchMethodEditor } from "@/components/batch-method-editor";
+import {
+  JournalImagesPicker,
+  JournalImagesEditor,
+  JournalGallery,
+} from "@/components/journal-images";
 import { SpeciesCardEditor } from "@/components/species-card-editor";
 import { SpeciesLabelFields } from "@/components/species-label-fields";
 import { SpeciesImagePicker } from "@/components/species-image-picker";
@@ -394,6 +399,7 @@ function Home({ user }: { user: User }) {
             ...base,
             batchId: value("batchId"),
             text: value("text"),
+            images: JSON.parse(value("images") || "[]"),
             phase: value("phase") as Batch["status"],
             temperature: Number(value("temperature")),
             humidity: Number(value("humidity")),
@@ -756,6 +762,11 @@ function Home({ user }: { user: User }) {
                             {formatDate(e.date)} · {batchName(e.batchId)}
                           </span>
                           <p>{e.text}</p>
+                          {e.images?.length ? (
+                            <span className="tiny">
+                              {e.images.length} bilder i dagboken
+                            </span>
+                          ) : null}
                         </div>
                       </div>
                     ))}
@@ -917,6 +928,28 @@ function Home({ user }: { user: User }) {
                           )}
                         </div>
                         <p>{e.text}</p>
+                        {e.images?.length ? (
+                          <JournalGallery
+                            images={e.images}
+                            label={"anteckningen " + formatDate(e.date)}
+                          />
+                        ) : null}
+                        {canEdit(e.id) && (
+                          <JournalImagesEditor
+                            images={e.images}
+                            disabled={saving}
+                            onSave={async (images) => {
+                              const success = await save({
+                                kind: "anteckningsbilder",
+                                id: e.id,
+                                images,
+                              });
+                              if (success)
+                                setNotice("Dagboksbilderna har sparats.");
+                              return success;
+                            }}
+                          />
+                        )}
                         <label className="status-label journal-phase-label">
                           Odlingsfas vid anteckningen
                           <select
@@ -1279,6 +1312,7 @@ function Home({ user }: { user: User }) {
                 )}
                 {form === "anteckning" && (
                   <>
+                    <JournalImagesPicker onBusyChange={setImageBusy} />
                     <label>
                       Odlingsfas
                       <select
