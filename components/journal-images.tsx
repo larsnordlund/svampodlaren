@@ -159,7 +159,7 @@ export function JournalImagesEditor({
     [error, setError] = useState(""),
     [revision, setRevision] = useState(0);
   return (
-    <details className="species-card-editor">
+    <details className="species-card-editor journal-images-editor">
       <summary>Lägg till / ändra bilder</summary>
       <form
         key={revision}

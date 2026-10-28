@@ -787,8 +787,12 @@ footer > span:first-child {
   display: flex;
   gap: 20px;
   flex-wrap: wrap;
+}
+.readings,
+.species-card-editor.journal-images-editor > summary {
   color: #839274;
   font-size: 11px;
+  font-weight: 400;
 }
 .readings span {
   display: flex;
@@ -1334,6 +1338,9 @@ td small {
   }
   .readings {
     gap: 10px;
+  }
+  .readings,
+  .species-card-editor.journal-images-editor > summary {
     font-size: 10px;
   }
   .modal {
