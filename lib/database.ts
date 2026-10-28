@@ -124,6 +124,23 @@ export function openDatabase(filename: string, initialData: Data = seed) {
       throw error;
     }
   }
+  db.exec("BEGIN IMMEDIATE");
+  try {
+    if (
+      !db
+        .prepare("PRAGMA table_info(custom_species)")
+        .all()
+        .some((column) => column.name === "image")
+    )
+      db.exec(
+        "ALTER TABLE custom_species ADD COLUMN image TEXT NOT NULL DEFAULT '' CHECK(length(image)<=1400000)",
+      );
+    db.exec("COMMIT");
+  } catch (error) {
+    db.exec("ROLLBACK");
+    db.close();
+    throw error;
+  }
   accountSchema(db);
   backupSchema(db);
   return db;
@@ -135,9 +152,13 @@ export function readData(db: DatabaseSync): Data {
     const data = {
       customSpecies: db
         .prepare(
-          "SELECT id,name,latin,description,guide,url FROM custom_species ORDER BY rowid",
+          "SELECT id,name,latin,description,guide,url,image FROM custom_species ORDER BY rowid",
         )
-        .all(),
+        .all()
+        .map((row) => {
+          if (!row.image) delete row.image;
+          return row;
+        }),
       projects: db.prepare("SELECT * FROM projects ORDER BY rowid").all(),
       batches: db.prepare("SELECT * FROM batches ORDER BY rowid").all(),
       entries: db
@@ -204,7 +225,7 @@ export function mutate(db: DatabaseSync, input: unknown) {
       case "svamp": {
         const r = mutation.record;
         db.prepare(
-          "INSERT INTO custom_species(id,name,name_key,latin,description,guide,url) VALUES(?,?,?,?,?,?,?)",
+          "INSERT INTO custom_species(id,name,name_key,latin,description,guide,url,image) VALUES(?,?,?,?,?,?,?,?)",
         ).run(
           r.id,
           r.name,
@@ -213,6 +234,7 @@ export function mutate(db: DatabaseSync, input: unknown) {
           r.description,
           r.guide,
           r.url,
+          r.image || "",
         );
         break;
       }

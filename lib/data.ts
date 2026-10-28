@@ -32,6 +32,7 @@ export type Harvest = Ownership & {
   flush: number;
 };
 export type CustomSpecies = Ownership & {
+  image?: string;
   id: string;
   name: string;
   latin: string;

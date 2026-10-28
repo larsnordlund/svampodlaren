@@ -5,11 +5,13 @@ import photos from "@/lib/species-photos.json";
 
 export function SpeciesPhoto({
   name,
+  image,
   className,
   children,
   eager = false,
 }: {
   name: string;
+  image?: string;
   className: string;
   children?: ReactNode;
   eager?: boolean;
@@ -19,8 +21,8 @@ export function SpeciesPhoto({
       photo.name.toLocaleLowerCase("sv-SE") === name.toLocaleLowerCase("sv-SE"),
   );
   const [failedSource, setFailedSource] = useState("");
-  const source = photo ? "/images/mushrooms/" + photo.file : "";
-  const visible = photo && failedSource !== source;
+  const source = image || (photo ? "/images/mushrooms/" + photo.file : "");
+  const visible = source && failedSource !== source;
   return (
     <figure className={className}>
       {visible ? (
@@ -35,17 +37,23 @@ export function SpeciesPhoto({
             decoding="async"
             onError={() => setFailedSource(source)}
           />
-          <figcaption className="photo-credit">
-            Foto:{" "}
-            <a href={photo.source} target="_blank" rel="noreferrer">
-              {photo.author}
-            </a>
-            {" · "}
-            <a href={photo.licenseUrl} target="_blank" rel="noreferrer">
-              {photo.license}
-            </a>
-            {" · beskuren"}
-          </figcaption>
+          {image ? (
+            <figcaption className="photo-credit">Egen bild</figcaption>
+          ) : (
+            photo && (
+              <figcaption className="photo-credit">
+                Foto:{" "}
+                <a href={photo.source} target="_blank" rel="noreferrer">
+                  {photo.author}
+                </a>
+                {" · "}
+                <a href={photo.licenseUrl} target="_blank" rel="noreferrer">
+                  {photo.license}
+                </a>
+                {" · beskuren"}
+              </figcaption>
+            )
+          )}
         </>
       ) : (
         <div

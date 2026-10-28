@@ -1699,3 +1699,31 @@ td .delete-entry-button {
     min-width: 0;
   }
 }
+.image-picker {
+  display: grid;
+  gap: 12px;
+}
+.image-picker-preview {
+  width: 100%;
+  max-width: 360px;
+  max-height: 240px;
+  object-fit: contain;
+  border-radius: 12px;
+  background: var(--beige);
+}
+.species-image-editor {
+  margin: 14px 0;
+}
+.species-image-editor summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--forest);
+  padding: 8px 0;
+}
+.species-image-editor fieldset {
+  border: 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+}

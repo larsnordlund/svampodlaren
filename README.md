@@ -79,7 +79,7 @@ Startkommandona binder servern till `127.0.0.1`. API:t accepterar bara lokala v�
 
 Appen är avsedd för lokal användning och ska inte publiceras direkt på internet. Den behöver en lokal Node.js-process och en beständig datamapp och är inte avsedd för Vercels tillfälliga filsystem.
 
-Inga lösenord, API-nycklar eller riktiga användaruppgifter ska läggas i repositoryt. Bildhantering, webbutik, betalningar och molnsynkronisering ingår inte i denna version.
+Inga lösenord, API-nycklar eller riktiga användaruppgifter ska läggas i repositoryt. Webbutik, betalningar och molnsynkronisering ingår inte i denna version.
 
 ## Kodstruktur
 
@@ -145,3 +145,11 @@ Samma manuella körning finns i terminalen:
 ```bash
 node --experimental-strip-types scripts/weekly-backup.mjs --manual
 ```
+
+## Bilder på egna svampar
+
+I **Svampbibliotek → Lägg till svamp** kan du välja ett foto under **Bild (valfritt)**. JPG, PNG och WebP upp till 10 MB stöds. Webbläsaren anpassar fotot till högst 1440 pixlar och komprimerar det som JPEG (högst 1 MB), med förhandsvisning före sparande. Den omritade bilden sparas utan originalfilens metadata.
+
+För en befintlig egen svamp: öppna **Ändra bild** på bibliotekskortet, välj ett annat foto eller tryck **Ta bort bild**, och sedan **Spara bild**. Bildfältet finns även vid registrering och redigering av **Egna svampar** i registervyn. Användare får ändra egna bilder och administratörer får ändra allas. De inbyggda arternas referensbilder behålls.
+
+Bilderna lagras i kolumnen `custom_species.image` i SQLite och fungerar utan internet. De följer med i JSON-export, fullständig databasbackup och odlingsfilen för mejl. Inga separata uppladdningsmappar behöver flyttas vid installation på Raspberry Pi. Servern validerar bildformat, storlek och dimensioner; SVG och externa bildadresser godtas inte som uppladdning. Befintliga databaser får ett tomt bildfält utan att gamla uppgifter ändras.

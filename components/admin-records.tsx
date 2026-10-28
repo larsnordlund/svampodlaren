@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState, type FormEvent } from "react";
 import type { User, RecordKind } from "@/lib/accounts";
+import { SpeciesImagePicker } from "./species-image-picker";
 import { UserManagement } from "./user-management";
 import { BackupSettings } from "./backup-settings";
 import { cultivationPhases } from "@/lib/data";
@@ -61,6 +62,7 @@ const labels: Record<string, string> = {
 };
 type Row = Record<string, string | number> & { id: string };
 export function AdminRecords({ currentUser }: { currentUser: User }) {
+  const [imageBusy, setImageBusy] = useState(false);
   const isAdmin = currentUser.role === "admin";
   const [data, setData] = useState<Record<string, Row[]>>({}),
     [users, setUsers] = useState<User[]>([]),
@@ -110,6 +112,7 @@ export function AdminRecords({ currentUser }: { currentUser: User }) {
   }, []);
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (imageBusy) return;
     const form = e.currentTarget;
     setBusy(true);
     setError("");
@@ -237,6 +240,12 @@ export function AdminRecords({ currentUser }: { currentUser: User }) {
             onSubmit={submit}
           >
             <fieldset disabled={busy}>
+              {kind === "svamp" && (
+                <SpeciesImagePicker
+                  initialImage={String(record?.image || "")}
+                  onBusyChange={setImageBusy}
+                />
+              )}
               {spec.fields.map((field) => {
                 const value =
                   record?.[field] ??
@@ -341,7 +350,9 @@ export function AdminRecords({ currentUser }: { currentUser: User }) {
                 );
               })}
               <div className="admin-toolbar">
-                <button className="button primary">Spara post</button>
+                <button className="button primary" disabled={imageBusy}>
+                  Spara post
+                </button>
                 <button
                   type="button"
                   className="button secondary"

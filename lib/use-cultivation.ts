@@ -43,7 +43,7 @@ export function useCultivation() {
       });
     return () => abort.abort();
   }, [reload]);
-  async function save(mutation: Mutation) {
+  async function save(mutation: Mutation & { edit?: boolean }) {
     if (busy.current || !ready) return false;
     busy.current = true;
     setSaving(true);

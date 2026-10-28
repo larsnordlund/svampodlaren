@@ -28,6 +28,8 @@ import {
 } from "@/lib/data";
 import { useCultivation } from "@/lib/use-cultivation";
 import { BatchMethodEditor } from "@/components/batch-method-editor";
+import { SpeciesImageEditor } from "@/components/species-image-editor";
+import { SpeciesImagePicker } from "@/components/species-image-picker";
 import { SpeciesPhoto } from "@/components/species-photo";
 import type { Mutation, DeleteKind } from "@/lib/validation";
 
@@ -156,6 +158,7 @@ function Home({ user }: { user: User }) {
     );
   const myProjects = data.projects.filter((p) => p.ownerId === user.id);
   const myBatches = data.batches.filter((b) => b.ownerId === user.id);
+  const [imageBusy, setImageBusy] = useState(false);
   const [menu, setMenu] = useState(false);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("Alla");
@@ -313,7 +316,7 @@ function Home({ user }: { user: User }) {
     canEdit(id) && (
       <button
         className="delete-entry-button"
-        disabled={saving}
+        disabled={saving || imageBusy}
         aria-label={label}
         onClick={() => requestDelete(kind, id)}
       >
@@ -337,7 +340,7 @@ function Home({ user }: { user: User }) {
   };
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (saving) return;
+    if (saving || imageBusy) return;
     const fields = new FormData(event.currentTarget);
     const value = (key: string) => String(fields.get(key) ?? "").trim();
     const base = { id: crypto.randomUUID(), date: value("date") || today() };
@@ -353,6 +356,7 @@ function Home({ user }: { user: User }) {
             description: value("description"),
             guide: value("guide"),
             url: value("url"),
+            image: value("image"),
           },
         };
         break;
@@ -1036,7 +1040,11 @@ function Home({ user }: { user: User }) {
                   (s, i) =>
                     match(s.name, s.latin) && (
                       <article className="species-card" key={s.name}>
-                        <SpeciesPhoto name={s.name} className="species-art">
+                        <SpeciesPhoto
+                          name={s.name}
+                          image={"image" in s ? (s.image as string) : undefined}
+                          className="species-art"
+                        >
                           <span className="badge">{s.tag}</span>
                         </SpeciesPhoto>
                         <div className="batch-body">
@@ -1049,6 +1057,27 @@ function Home({ user }: { user: User }) {
                           >
                             Läs odlingsguiden <ArrowUpRight size={17} />
                           </button>
+                          {data.customSpecies
+                            .filter(
+                              (own) => own.name === s.name && canEdit(own.id),
+                            )
+                            .map((own) => (
+                              <SpeciesImageEditor
+                                key={own.id}
+                                image={own.image}
+                                disabled={saving}
+                                onSave={async (image) => {
+                                  const success = await save({
+                                    kind: "svamp",
+                                    record: { ...own, image },
+                                    edit: true,
+                                  });
+                                  if (success)
+                                    setNotice("Svampbilden har sparats.");
+                                  return success;
+                                }}
+                              />
+                            ))}
                           {"id" in s &&
                             typeof s.id === "string" &&
                             deleteButton(
@@ -1112,9 +1141,10 @@ function Home({ user }: { user: User }) {
               </p>
             )}
             <form onSubmit={submit} key={form}>
-              <fieldset disabled={saving} className="form-fields">
+              <fieldset disabled={saving || imageBusy} className="form-fields">
                 {form === "svamp" && (
                   <>
+                    <SpeciesImagePicker onBusyChange={setImageBusy} />
                     <Field label="Svampnamn" name="name" autoFocus />
                     <Field
                       label="Vetenskapligt namn (valfritt)"
@@ -1300,7 +1330,7 @@ function Home({ user }: { user: User }) {
                 <button
                   className="button primary"
                   type="submit"
-                  disabled={saving}
+                  disabled={saving || imageBusy}
                 >
                   <Check size={17} />
                   Spara {form}
@@ -1352,7 +1382,7 @@ function Home({ user }: { user: User }) {
             <div className="modal-actions">
               <button
                 className="button secondary"
-                disabled={saving}
+                disabled={saving || imageBusy}
                 onClick={() => setDeletion(null)}
               >
                 Avbryt
@@ -1399,6 +1429,11 @@ function Home({ user }: { user: User }) {
             </button>
             <SpeciesPhoto
               name={species[guide].name}
+              image={
+                "image" in species[guide]
+                  ? (species[guide] as { image?: string }).image
+                  : undefined
+              }
               className="guide-art"
               eager
             />

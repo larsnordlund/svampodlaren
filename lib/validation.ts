@@ -7,13 +7,9 @@ import {
   type Project,
 } from "./data.ts";
 
-export class InputError extends Error {
-  status: number;
-  constructor(message: string, status = 400) {
-    super(message);
-    this.status = status;
-  }
-}
+import { InputError } from "./input-error.ts";
+export { InputError } from "./input-error.ts";
+import { validateSpeciesImage } from "./species-image.ts";
 export const deleteKinds = [
   "radera-anteckning",
   "radera-projekt",
@@ -151,6 +147,9 @@ export function parseMutation(input: unknown): Mutation {
         description: optionalText(r.description, "Beskrivning", 1000),
         guide: optionalText(r.guide, "Odlingsråd", 4000),
         url: sourceUrl(r.url),
+        ...(r.image !== undefined
+          ? { image: validateSpeciesImage(r.image) }
+          : {}),
       },
     };
   }
