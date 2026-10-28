@@ -6,12 +6,14 @@ import photos from "@/lib/species-photos.json";
 export function SpeciesPhoto({
   name,
   image,
+  photoCaption = "Egen bild",
   className,
   children,
   eager = false,
 }: {
   name: string;
   image?: string;
+  photoCaption?: string;
   className: string;
   children?: ReactNode;
   eager?: boolean;
@@ -38,7 +40,9 @@ export function SpeciesPhoto({
             onError={() => setFailedSource(source)}
           />
           {image ? (
-            <figcaption className="photo-credit">Egen bild</figcaption>
+            photoCaption ? (
+              <figcaption className="photo-credit">{photoCaption}</figcaption>
+            ) : null
           ) : (
             photo && (
               <figcaption className="photo-credit">

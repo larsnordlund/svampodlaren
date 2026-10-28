@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState, type FormEvent } from "react";
 import type { User, RecordKind } from "@/lib/accounts";
+import { SpeciesLabelFields } from "./species-label-fields";
 import { SpeciesImagePicker } from "./species-image-picker";
 import { UserManagement } from "./user-management";
 import { BackupSettings } from "./backup-settings";
@@ -244,6 +245,12 @@ export function AdminRecords({ currentUser }: { currentUser: User }) {
                 <SpeciesImagePicker
                   initialImage={String(record?.image || "")}
                   onBusyChange={setImageBusy}
+                />
+              )}
+              {kind === "svamp" && (
+                <SpeciesLabelFields
+                  badgeText={record?.badgeText as string | undefined}
+                  photoCaption={record?.photoCaption as string | undefined}
                 />
               )}
               {spec.fields.map((field) => {

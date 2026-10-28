@@ -147,6 +147,12 @@ export function parseMutation(input: unknown): Mutation {
         description: optionalText(r.description, "Beskrivning", 1000),
         guide: optionalText(r.guide, "Odlingsråd", 4000),
         url: sourceUrl(r.url),
+        ...(r.badgeText !== undefined
+          ? { badgeText: optionalText(r.badgeText, "Etikett", 60) }
+          : {}),
+        ...(r.photoCaption !== undefined
+          ? { photoCaption: optionalText(r.photoCaption, "Bildtext", 160) }
+          : {}),
         ...(r.image !== undefined
           ? { image: validateSpeciesImage(r.image) }
           : {}),

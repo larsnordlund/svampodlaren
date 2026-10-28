@@ -135,6 +135,17 @@ export function openDatabase(filename: string, initialData: Data = seed) {
       db.exec(
         "ALTER TABLE custom_species ADD COLUMN image TEXT NOT NULL DEFAULT '' CHECK(length(image)<=1400000)",
       );
+    const speciesColumns = db
+      .prepare("PRAGMA table_info(custom_species)")
+      .all();
+    if (!speciesColumns.some((column) => column.name === "badgeText"))
+      db.exec(
+        "ALTER TABLE custom_species ADD COLUMN badgeText TEXT NOT NULL DEFAULT 'Egen svamp' CHECK(length(badgeText)<=60)",
+      );
+    if (!speciesColumns.some((column) => column.name === "photoCaption"))
+      db.exec(
+        "ALTER TABLE custom_species ADD COLUMN photoCaption TEXT NOT NULL DEFAULT 'Egen bild' CHECK(length(photoCaption)<=160)",
+      );
     db.exec("COMMIT");
   } catch (error) {
     db.exec("ROLLBACK");
@@ -152,11 +163,13 @@ export function readData(db: DatabaseSync): Data {
     const data = {
       customSpecies: db
         .prepare(
-          "SELECT id,name,latin,description,guide,url,image FROM custom_species ORDER BY rowid",
+          "SELECT id,name,latin,description,guide,url,image,badgeText,photoCaption FROM custom_species ORDER BY rowid",
         )
         .all()
         .map((row) => {
           if (!row.image) delete row.image;
+          if (row.badgeText === "Egen svamp") delete row.badgeText;
+          if (row.photoCaption === "Egen bild") delete row.photoCaption;
           return row;
         }),
       projects: db.prepare("SELECT * FROM projects ORDER BY rowid").all(),
@@ -225,7 +238,7 @@ export function mutate(db: DatabaseSync, input: unknown) {
       case "svamp": {
         const r = mutation.record;
         db.prepare(
-          "INSERT INTO custom_species(id,name,name_key,latin,description,guide,url,image) VALUES(?,?,?,?,?,?,?,?)",
+          "INSERT INTO custom_species(id,name,name_key,latin,description,guide,url,image,badgeText,photoCaption) VALUES(?,?,?,?,?,?,?,?,?,?)",
         ).run(
           r.id,
           r.name,
@@ -235,6 +248,8 @@ export function mutate(db: DatabaseSync, input: unknown) {
           r.guide,
           r.url,
           r.image || "",
+          r.badgeText ?? "Egen svamp",
+          r.photoCaption ?? "Egen bild",
         );
         break;
       }

@@ -29,6 +29,7 @@ import {
 import { useCultivation } from "@/lib/use-cultivation";
 import { BatchMethodEditor } from "@/components/batch-method-editor";
 import { SpeciesImageEditor } from "@/components/species-image-editor";
+import { SpeciesLabelFields } from "@/components/species-label-fields";
 import { SpeciesImagePicker } from "@/components/species-image-picker";
 import { SpeciesPhoto } from "@/components/species-photo";
 import type { Mutation, DeleteKind } from "@/lib/validation";
@@ -144,7 +145,7 @@ function Home({ user }: { user: User }) {
     ...builtInSpecies,
     ...data.customSpecies.map((s) => ({
       ...s,
-      tag: "Egen svamp",
+      tag: s.badgeText ?? "Egen svamp",
       color: "sage",
     })),
   ];
@@ -357,6 +358,8 @@ function Home({ user }: { user: User }) {
             guide: value("guide"),
             url: value("url"),
             image: value("image"),
+            badgeText: value("badgeText"),
+            photoCaption: value("photoCaption"),
           },
         };
         break;
@@ -1042,10 +1045,15 @@ function Home({ user }: { user: User }) {
                       <article className="species-card" key={s.name}>
                         <SpeciesPhoto
                           name={s.name}
+                          photoCaption={
+                            data.customSpecies.find(
+                              (own) => own.name === s.name,
+                            )?.photoCaption
+                          }
                           image={"image" in s ? (s.image as string) : undefined}
                           className="species-art"
                         >
-                          <span className="badge">{s.tag}</span>
+                          {s.tag && <span className="badge">{s.tag}</span>}
                         </SpeciesPhoto>
                         <div className="batch-body">
                           <h2>{s.name}</h2>
@@ -1065,15 +1073,19 @@ function Home({ user }: { user: User }) {
                               <SpeciesImageEditor
                                 key={own.id}
                                 image={own.image}
+                                badgeText={own.badgeText}
+                                photoCaption={own.photoCaption}
                                 disabled={saving}
-                                onSave={async (image) => {
+                                onSave={async (image, labels) => {
                                   const success = await save({
                                     kind: "svamp",
-                                    record: { ...own, image },
+                                    record: { ...own, image, ...labels },
                                     edit: true,
                                   });
                                   if (success)
-                                    setNotice("Svampbilden har sparats.");
+                                    setNotice(
+                                      "Bilden och texterna har sparats.",
+                                    );
                                   return success;
                                 }}
                               />
@@ -1145,6 +1157,7 @@ function Home({ user }: { user: User }) {
                 {form === "svamp" && (
                   <>
                     <SpeciesImagePicker onBusyChange={setImageBusy} />
+                    <SpeciesLabelFields />
                     <Field label="Svampnamn" name="name" autoFocus />
                     <Field
                       label="Vetenskapligt namn (valfritt)"
@@ -1429,6 +1442,11 @@ function Home({ user }: { user: User }) {
             </button>
             <SpeciesPhoto
               name={species[guide].name}
+              photoCaption={
+                data.customSpecies.find(
+                  (own) => own.name === species[guide].name,
+                )?.photoCaption
+              }
               image={
                 "image" in species[guide]
                   ? (species[guide] as { image?: string }).image
