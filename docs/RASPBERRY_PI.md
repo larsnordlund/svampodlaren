@@ -1,93 +1,54 @@
-# Svampodlaren på Raspberry Pi med automatisk start och privat HTTPS
+# Svampodlaren på Raspberry Pi med UniFi Teleport och automatisk start
 
-Det här gör appen tillgänglig hemifrån och utifrån på datorer och mobiler som du ansluter till ditt eget Tailscale-nätverk. Alla behöver också logga in i Svampodlaren med sina vanliga appkonton. Adressen är privat; ingen port behöver öppnas i routern. Du använder Tailscale Serve, inte den publika tjänsten Funnel.
+Använd ert befintliga UniFi Teleport via WiFiman. Tailscale behövs inte. Hemma öppnar du Pi:ns adress direkt; utifrån ansluter du först Teleport och öppnar samma adress. Logga därefter in med ditt vanliga konto i Svampodlaren.
 
-## 1. Överför den uppdaterade appen
+## 1. Behåll data och uppdatera programmet
 
-Överför de uppdaterade programfilerna med Transmit till `~/svampodlaren` på Pi:n. Ta med `lib`, `app`, `components`, `scripts`, `public`, `package.json`, `pnpm-lock.yaml`, TypeScript-/PostCSS-konfiguration och denna guide. Behåll Pi:ns befintliga `data/`, `backups/` och `.env*`-filer. Överför inte Macens `node_modules`, `.next` eller `.git` och skriv inte över Pi:ns databas med Macens kopia.
+Ta en fullständig backup i appen. Överför uppdaterade programfiler med Transmit till `~/svampodlaren`. Behåll Pi:ns `data/`, `backups/` och `.env*`. Överför inte Macens `node_modules`, `.next` eller `.git`. Skriv inte över databasen med Macens kopia.
 
-Ta en fullständig säkerhetskopia innan uppdatering. Kör därefter installationen nedan på Pi:n, inte på Macen. Du behöver Node.js 24 LTS (minst 22.13), pnpm 11 och ett vanligt Linux-konto med sudo-rättighet.
+I UniFi, reservera Pi:ns nuvarande IP-adress i DHCP-inställningarna så att adressen förblir densamma. Exemplen använder `192.168.3.137`; byt den om Pi:n fått en annan adress.
 
-## 2. Installera och anslut Tailscale på Pi:n
+## 2. Bygg och aktivera automatisk start
 
-Om Tailscale inte redan är installerat:
-
-```bash
-curl -fsSL https://tailscale.com/install.sh | sh
-```
-
-Anslut och följ inloggningslänken som kommandot visar:
-
-```bash
-sudo systemctl enable --now tailscaled
-sudo tailscale up
-```
-
-[Officiell Linux-installation](https://tailscale.com/docs/install/linux).
-
-## 3. Bygg appen och installera automatisk start
-
-Stoppa tidigare `pnpm start` med Ctrl+C i dess terminal. Om appen redan körs som tjänst: `sudo systemctl stop svampodlaren` före uppdatering/bygge. Ingen annan process stoppas automatiskt.
+Kör på Pi:n som din vanliga användare. Node.js minst 22.13 och projektets pnpm-version behövs. Stoppa tidigare manuella `pnpm start` med Ctrl+C, eller befintlig tjänst med `sudo systemctl stop svampodlaren` före bygget.
 
 ```bash
 cd ~/svampodlaren
 pnpm install --frozen-lockfile
 pnpm build
-node --experimental-strip-types scripts/install-rpi-service.mjs
+node --experimental-strip-types scripts/install-rpi-service.mjs --lan-origin http://192.168.3.137:3001
 ```
 
-Kör det sista kommandot utan `sudo` framför `node`. Skriptet hittar Pi:ns Tailscale-adress, kontonamn och aktuella Node-sökväg. Det frågar självt efter sudo vid installation av `/etc/systemd/system/svampodlaren.service` och kör `daemon-reload`, `enable` och `restart`. Din befintliga databas används genom samma projektmapp och vanliga konfiguration. Porten är 3001; om den är upptagen av en manuellt startad app får du ett fel som ber dig stoppa den. Skriptet dödar ingen okänd process.
+Skriptet hittar aktuellt konto och Node-sökväg, även med nvm. Det ber självt om sudo, installerar `/etc/systemd/system/svampodlaren.service` och aktiverar samt startar tjänsten. Din befintliga databas används i samma projektmapp. Efter en Node-/nvm-uppdatering kör du installationsskriptet igen.
 
-Förhandsgranska tjänsten utan att installera (byt ut exempeladressen):
+Du kan först förhandsgranska utan installation genom att lägga till `--dry-run`. För annan port måste både adress och `--port` matcha, exempelvis `--lan-origin http://192.168.3.137:3005 --port 3005`.
 
-```bash
-node --experimental-strip-types scripts/install-rpi-service.mjs --origin https://rasp.ditt-nat.ts.net --dry-run
-```
+## 3. Anslut hemifrån och utifrån
 
-En annan port kan väljas med `--port 3005`. Använd då samma port även i Serve-kommandot nedan. Efter en större Node-/nvm-uppdatering kör du installationsskriptet igen så att tjänsten använder den nya absoluta Node-sökvägen.
+Öppna `http://192.168.3.137:3001` hemma. Utifrån aktiverar du först er Teleport-anslutning i WiFiman och öppnar samma adress. UniFi-regler mellan Teleport-nätet och Pi:ns nät måste tillåta TCP-port 3001. Ingen portvidarebefordran från internet ska skapas.
 
-## 4. Aktivera privat HTTPS
+[UniFis dokumentation om Teleport](https://help.ui.com/hc/en-us/articles/5246403561495-UniFi-Gateway-Teleport-VPN).
 
-```bash
-sudo tailscale serve --bg http://127.0.0.1:3001
-```
+Den här varianten använder HTTP inom ert privata nät. Teleport krypterar VPN-förbindelsen utifrån; det innebär inte att webbadressen har HTTPS. Använd endast betrodda lokala nät och VPN. Appens login och ägarbehörigheter gäller fortfarande.
 
-Om Tailscale ber dig aktivera HTTPS, följ länken som visas och kör sedan kommandot igen. Serve skriver ut appens privata adress, exempelvis `https://rasp.ditt-nat.ts.net`. Öppna den från en dator eller mobil där Tailscale är installerat och anslutet till samma nätverk. Använd fortfarande ditt vanliga användarnamn och lösenord i Svampodlaren.
-
-`--bg` gör att Serve fortsätter i bakgrunden och återupptas efter omstart. [Dokumentation för Serve](https://tailscale.com/docs/reference/tailscale-cli/serve), [klienter för andra enheter](https://tailscale.com/docs/install).
-
-## 5. Kontrollera och administrera
+## 4. Kontrollera och administrera
 
 ```bash
 sudo systemctl status svampodlaren --no-pager
-curl -I http://127.0.0.1:3001
-sudo tailscale serve status
-```
-
-Starta om appen:
-
-```bash
+curl -I http://192.168.3.137:3001
 sudo systemctl restart svampodlaren
-```
-
-Visa senaste felloggen:
-
-```bash
 sudo journalctl -u svampodlaren -n 60 --no-pager
 ```
 
-Starta om Pi:n för att kontrollera att appen och Serve kommer tillbaka, när du har sett att adressen fungerar:
+När adressen fungerar kan du kontrollera start vid uppstart med `sudo reboot`.
 
-```bash
-sudo reboot
-```
+Om du redan installerat Tailscale Serve för appen kan du stänga av just dess HTTPS-lyssnare med `sudo tailscale serve --https=443 off`, förutsatt att den inte används för något annat. Installationsskriptet ovan ersätter appens systemd-konfiguration.
 
 ## Filer och inställningar
 
-- `lib/local-request.ts`: kontrollerar appens tillåtna origin och proxyhuvuden. Standard är bara localhost.
-- `app/api/auth/route.ts`: sätter Secure på sessionskakan för den verifierade HTTPS-adressen.
-- `lib/rpi-service.ts`: genererar systemd-tjänsten med användarkonto, projektmapp, nvm-/Node-sökväg och port.
-- `scripts/install-rpi-service.mjs`: installerar och aktiverar tjänsten på Pi:n.
-- `/etc/systemd/system/svampodlaren.service`: den installerade tjänsten på Pi:n. Ändringar här kräver `sudo systemctl daemon-reload` och `sudo systemctl restart svampodlaren`.
+- `lib/local-request.ts`: tillåter exakt `APP_LAN_ORIGIN` med privat IPv4-adress. Skrivningar kräver samma origin. Proxyhuvuden används inte för LAN-läget.
+- `lib/rpi-service.ts`: genererar tjänsten; LAN-läget lyssnar på `0.0.0.0` med `APP_TRUST_PROXY=0` och tom `APP_PUBLIC_ORIGIN`.
+- `scripts/install-rpi-service.mjs`: installerar och aktiverar tjänsten.
+- `/etc/systemd/system/svampodlaren.service`: den installerade tjänsten på Pi:n. Efter manuella ändringar: `sudo systemctl daemon-reload` och `sudo systemctl restart svampodlaren`.
 
-Appens port är fortsatt bunden till loopback och ska inte ändras till `0.0.0.0` med denna proxykonfiguration. `APP_PUBLIC_ORIGIN` är exakt appens privata HTTPS-adress och `APP_TRUST_PROXY=1` aktiveras endast bakom den lokala betrodda proxyn. Appen litar inte på Tailscale-identitetshuvuden för inloggning; vanliga appkonton och behörigheter gäller. Mottagaradress och lokal backupfunktion finns kvar, men Macens schemalagda Codex-/Apple Mail-körning flyttas inte automatiskt med appen.
+Standardstart på Mac/localhost påverkas inte. Tidigare privat HTTPS via Tailscale är fortfarande ett alternativ med `--origin https://din-pi.ditt-nat.ts.net`; kombinera inte det proxyläget med en öppet tillgänglig backend. Macens schemalagda Codex-/Apple Mail-backup flyttas inte automatiskt till Pi:n; manuell backup i appen finns kvar.

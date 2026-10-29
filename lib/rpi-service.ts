@@ -1,5 +1,5 @@
 import { isAbsolute, dirname, join } from "node:path";
-import { publicOrigin } from "./local-request.ts";
+import { publicOrigin, privateLanOrigin } from "./local-request.ts";
 function quoted(value: string, exec = false) {
   if (/[\r\n\0]/.test(value))
     throw Error("Sökvägar får inte innehålla kontrolltecken.");
@@ -16,21 +16,25 @@ export function rpiService({
   user,
   origin,
   port = 3001,
+  lan = false,
 }: {
   directory: string;
   node: string;
   user: string;
   origin: string;
   port?: number;
+  lan?: boolean;
 }) {
   if (/[\r\n\0\\]/.test(directory) || directory.trimEnd() !== directory)
     throw Error(
       "Projektets sökväg får inte innehålla kontrolltecken, bakstreck eller avslutande blanksteg.",
     );
-  const normalized = publicOrigin(origin);
+  const normalized = lan ? privateLanOrigin(origin) : publicOrigin(origin);
   if (!normalized)
     throw Error(
-      "Ange en HTTPS-adress utan sökväg, till exempel https://rasp.example.ts.net",
+      lan
+        ? "Ange Pi:ns privata HTTP-adress, till exempel http://192.168.3.137:3001"
+        : "Ange en HTTPS-adress utan sökväg.",
     );
   if (!isAbsolute(directory) || !isAbsolute(node))
     throw Error("Absoluta sökvägar krävs.");
@@ -38,6 +42,8 @@ export function rpiService({
     throw Error("Ogiltigt Linux-användarnamn.");
   if (!Number.isInteger(port) || port < 1024 || port > 65535)
     throw Error("Porten måste vara 1024–65535.");
+  if (lan && Number(new URL(normalized).port || 80) !== port)
+    throw Error("Adressens port måste matcha tjänstens port.");
   return `[Unit]
 Description=Svampodlaren
 Wants=network-online.target
@@ -49,11 +55,12 @@ StartLimitBurst=5
 Type=exec
 User=${user}
 WorkingDirectory=${directory.replace(/%/g, "%%")}
-ExecStart=${quoted(node, true)} ${quoted(join(directory, "node_modules/next/dist/bin/next"), true)} start --hostname 127.0.0.1 --port ${port}
+ExecStart=${quoted(node, true)} ${quoted(join(directory, "node_modules/next/dist/bin/next"), true)} start --hostname ${lan ? "0.0.0.0" : "127.0.0.1"} --port ${port}
 Environment="NODE_ENV=production"
 Environment=${quoted("PATH=" + dirname(node) + ":/usr/local/bin:/usr/bin:/bin")}
-Environment=${quoted("APP_PUBLIC_ORIGIN=" + normalized)}
-Environment="APP_TRUST_PROXY=1"
+Environment=${quoted("APP_PUBLIC_ORIGIN=" + (lan ? "" : normalized))}
+Environment=${quoted("APP_LAN_ORIGIN=" + (lan ? normalized : ""))}
+Environment="APP_TRUST_PROXY=${lan ? "0" : "1"}"
 Restart=on-failure
 RestartSec=5
 TimeoutStopSec=30

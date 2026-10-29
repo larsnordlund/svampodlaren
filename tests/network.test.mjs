@@ -4,6 +4,7 @@ import {
   allowedLocalRequest,
   requestOrigin,
   publicOrigin,
+  privateLanOrigin,
 } from "../lib/local-request.ts";
 import { rpiService } from "../lib/rpi-service.ts";
 const origin = "https://rasp.example.ts.net";
@@ -138,4 +139,48 @@ test("systemd-tjänsten låser backend till loopback och använder rätt Node, k
         ...overrides,
       }),
     );
+});
+
+test("Teleport/LAN tillåter bara konfigurerad privat adress och samma origin", () => {
+  const origin = "http://192.168.3.137:3001";
+  const config = { lanOrigin: origin };
+  const request = new Request(origin + "/api/data", {
+    headers: { host: "192.168.3.137:3001", origin },
+  });
+  assert.equal(allowedLocalRequest(request, true, config), true);
+  assert.equal(allowedLocalRequest(request, true, {}), false);
+  request.headers.set("origin", "http://evil.example");
+  assert.equal(allowedLocalRequest(request, true, config), false);
+  request.headers.set("origin", origin);
+  request.headers.set("host", "192.168.3.138:3001");
+  request.headers.set("x-forwarded-host", "192.168.3.137:3001");
+  assert.equal(allowedLocalRequest(request, true, config), false);
+  for (const value of [
+    "http://8.8.8.8:3001",
+    "http://evil.example",
+    "http://192.168.3.137:3001/path",
+    "http://user:pass@192.168.3.137:3001",
+  ])
+    assert.equal(privateLanOrigin(value), null);
+  const unit = rpiService({
+    directory: "/home/pi/svampodlaren",
+    node: "/usr/bin/node",
+    user: "pi",
+    origin,
+    lan: true,
+  });
+  assert.match(unit, /--hostname 0.0.0.0 --port 3001/);
+  assert.match(unit, /APP_LAN_ORIGIN=http:\/\/192.168.3.137:3001/);
+  assert.match(unit, /APP_TRUST_PROXY=0/);
+  assert.match(unit, /APP_PUBLIC_ORIGIN="/);
+  assert.throws(() =>
+    rpiService({
+      directory: "/home/pi/app",
+      node: "/usr/bin/node",
+      user: "pi",
+      origin,
+      lan: true,
+      port: 3005,
+    }),
+  );
 });

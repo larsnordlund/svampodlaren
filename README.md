@@ -77,7 +77,7 @@ Lösenord lagras med individuella salter och scrypt (N=131072, r=8, p=1). Sessio
 
 Startkommandona binder servern till `127.0.0.1`. API:t accepterar lokala värdnamn samt en uttryckligen konfigurerad HTTPS-adress via en betrodd proxy; skrivningar kräver samma origin. Alla dataanrop kräver inloggning, behörigheter kontrolleras på servern och ägarskap kontrolleras vid alla ändringar där. Servern validerar uppgifter och använder parametriserad SQL, främmande nycklar och databasbegränsningar. Kontona delar samma dator och databasfil; en person med åtkomst till filen kan läsa eller ändra databasen. Säkerhetskopior innehåller därför även lösenordshashar och sessioner och ska skyddas.
 
-Appen kan användas lokalt eller via privat HTTPS genom Tailscale Serve. Den ska inte exponeras direkt som en publik HTTP-tjänst. Den behöver en lokal Node.js-process och en beständig datamapp och är inte avsedd för Vercels tillfälliga filsystem.
+Appen kan användas lokalt, på ert privata nät via UniFi Teleport eller via privat HTTPS genom Tailscale Serve. Den ska inte exponeras direkt som en publik HTTP-tjänst. Den behöver en lokal Node.js-process och en beständig datamapp och är inte avsedd för Vercels tillfälliga filsystem.
 
 Inga lösenord, API-nycklar eller riktiga användaruppgifter ska läggas i repositoryt. Webbutik, betalningar och molnsynkronisering ingår inte i denna version.
 
@@ -180,8 +180,8 @@ På varje batchkort finns också **Visa dagbok (antal)** som öppnar dagboken di
 
 ## Raspberry Pi: start vid uppstart och privat åtkomst utanför hemmet
 
-Se [installationsguiden](docs/RASPBERRY_PI.md). `scripts/install-rpi-service.mjs` hittar aktuell Node-sökväg (även nvm), skapar en systemd-tjänst för den befintliga projektmappen/databasen och aktiverar automatisk start på port 3001. Appen lyssnar fortfarande bara på `127.0.0.1`; Tailscale Serve står för privat HTTPS och åtkomst från anslutna datorer/mobiler. SSH-tunneln behövs då inte.
+Se [installationsguiden](docs/RASPBERRY_PI.md). För ert UniFi Teleport används `--lan-origin http://192.168.3.137:3001` vid installation. Skriptet hittar Node-sökväg (även nvm), installerar systemd och aktiverar automatisk start. Byt IP-adressen om Pi:n har en annan adress och reservera den i UniFi.
 
-API:t kräver `APP_PUBLIC_ORIGIN=https://din-pi.ditt-nat.ts.net` och `APP_TRUST_PROXY=1` för proxyåtkomst. Installationsskriptet anger dessa i systemd-tjänsten från Pi:ns Tailscale-adress. Endast exakt denna HTTPS-origin med matchande proxyhuvuden godtas; andra värdar, ändrade origin och anrop från andra webbplatser nekas. Sessionskakan får `Secure` även när TLS avslutas i proxyn. Standardstart på Mac/localhost påverkas inte. Kombinera inte betrodda proxyhuvuden med en öppet tillgänglig backend på `0.0.0.0`.
+Hemma öppnas adressen direkt; utifrån ansluter man först via WiFiman/Teleport. Ingen Tailscale-installation eller SSH-tunnel behövs. LAN-läget tillåter exakt konfigurerad privat IPv4-origin, kräver samma origin för skrivningar och litar inte på proxyhuvuden. HTTP används inom det privata nätet. Ingen publik portvidarebefordran ska skapas.
 
-Ingen tjänst eller Tailscale-anslutning installeras automatiskt på en annan dator genom att filerna ändras här. Kör installationen på själva Pi:n enligt guiden. Veckobackupen via Codex/Apple Mail på Macen följer inte automatiskt med till Pi:n; manuell backup i appen fungerar även där.
+Installation och omstart på själva Pi:n görs enligt guiden. Befintlig SQLite-data bevaras. Macens schemalagda Codex-/Apple Mail-backup flyttas inte automatiskt till Pi:n.

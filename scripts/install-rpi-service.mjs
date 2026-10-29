@@ -9,13 +9,17 @@ import { rpiService } from "../lib/rpi-service.ts";
 const { values } = parseArgs({
   options: {
     origin: { type: "string" },
+    "lan-origin": { type: "string" },
     port: { type: "string", default: "3001" },
     "dry-run": { type: "boolean", default: false },
   },
 });
 const directory = resolve(fileURLToPath(new URL("../", import.meta.url))),
   port = Number(values.port);
-let origin = values.origin;
+if (values.origin && values["lan-origin"])
+  throw Error("Välj antingen --origin eller --lan-origin.");
+const lan = Boolean(values["lan-origin"]);
+let origin = values["lan-origin"] || values.origin;
 if (!origin) {
   const status = spawnSync("tailscale", ["status", "--json"], {
     encoding: "utf8",
@@ -38,6 +42,7 @@ const unit = rpiService({
   user: userInfo().username,
   origin,
   port,
+  lan,
 });
 if (values["dry-run"]) {
   process.stdout.write(unit);
@@ -103,9 +108,14 @@ try {
   console.log("Kontrollera tjänsten:");
   console.log("sudo systemctl status svampodlaren --no-pager");
   console.log(`curl -I http://127.0.0.1:${port}`);
-  console.log(
-    `Aktivera därefter HTTPS med: sudo tailscale serve --bg http://127.0.0.1:${port}`,
-  );
+  if (lan)
+    console.log(
+      "Öppna adressen på hemnätverket eller via UniFi Teleport/WiFiman. Ingen portvidarebefordran behövs.",
+    );
+  else
+    console.log(
+      `Aktivera därefter HTTPS med: sudo tailscale serve --bg http://127.0.0.1:${port}`,
+    );
 } finally {
   rmSync(folder, { recursive: true, force: true });
 }
