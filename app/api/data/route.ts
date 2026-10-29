@@ -24,7 +24,7 @@ function failure(error: unknown) {
 export function GET(request: Request) {
   if (!allowedLocalRequest(request))
     return Response.json(
-      { error: "Databasen är endast tillgänglig lokalt." },
+      { error: "Adressen är inte tillåten för appen." },
       { status: 403, headers },
     );
   try {
@@ -39,7 +39,7 @@ export function GET(request: Request) {
 export async function POST(request: Request) {
   if (!allowedLocalRequest(request, true))
     return Response.json(
-      { error: "Begäran måste komma från den lokala appen." },
+      { error: "Begäran måste komma från en tillåten adress för appen." },
       { status: 403, headers },
     );
   if (!request.headers.get("content-type")?.startsWith("application/json"))

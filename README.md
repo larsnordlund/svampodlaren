@@ -75,9 +75,9 @@ Alla inloggade användare kan se och exportera samtliga odlingsposter. Vanliga a
 
 Lösenord lagras med individuella salter och scrypt (N=131072, r=8, p=1). Sessioner har slumpmässiga token, endast SHA-256-hashen lagras i databasen, och webbläsaren får en HttpOnly-cookie med SameSite=Strict. Sessioner löper ut efter sju dagar och återkallas vid utloggning. Fem misslyckade inloggningar per användarnamn ger 15 minuters spärr. Välj minst 12 tecken för lösenord. Administratörer kan ange ett nytt lösenord i användarhanteringen; automatisk återställning via e-post ingår inte. Byte av användarnamn, lösenord eller roll återkallar kontots sessioner.
 
-Startkommandona binder servern till `127.0.0.1`. API:t accepterar bara lokala värdnamn, och skrivningar kräver samma origin. Alla dataanrop kräver inloggning, behörigheter kontrolleras på servern och ägarskap kontrolleras vid alla ändringar där. Servern validerar uppgifter och använder parametriserad SQL, främmande nycklar och databasbegränsningar. Kontona delar samma dator och databasfil; en person med åtkomst till filen kan läsa eller ändra databasen. Säkerhetskopior innehåller därför även lösenordshashar och sessioner och ska skyddas.
+Startkommandona binder servern till `127.0.0.1`. API:t accepterar lokala värdnamn samt en uttryckligen konfigurerad HTTPS-adress via en betrodd proxy; skrivningar kräver samma origin. Alla dataanrop kräver inloggning, behörigheter kontrolleras på servern och ägarskap kontrolleras vid alla ändringar där. Servern validerar uppgifter och använder parametriserad SQL, främmande nycklar och databasbegränsningar. Kontona delar samma dator och databasfil; en person med åtkomst till filen kan läsa eller ändra databasen. Säkerhetskopior innehåller därför även lösenordshashar och sessioner och ska skyddas.
 
-Appen är avsedd för lokal användning och ska inte publiceras direkt på internet. Den behöver en lokal Node.js-process och en beständig datamapp och är inte avsedd för Vercels tillfälliga filsystem.
+Appen kan användas lokalt eller via privat HTTPS genom Tailscale Serve. Den ska inte exponeras direkt som en publik HTTP-tjänst. Den behöver en lokal Node.js-process och en beständig datamapp och är inte avsedd för Vercels tillfälliga filsystem.
 
 Inga lösenord, API-nycklar eller riktiga användaruppgifter ska läggas i repositoryt. Webbutik, betalningar och molnsynkronisering ingår inte i denna version.
 
@@ -177,3 +177,11 @@ Alla inloggade användare kan se bilderna. Bara ägaren eller administratören f
 I **Odlingsdagbok** väljer du **Visa anteckningar för batch** för att visa hela historiken för en viss batch, även avslutade batcher. Alternativen visar batchnamn, behållare, projekt och antal anteckningar. Listan visas med senaste datum först, inklusive bilder och odlingsfas. Väljer du en annan batch rensas sökningen så att alla dess anteckningar kommer fram. Sökfältet kan sedan användas inom batchen; räknaren visar antal träffar av totalt antal anteckningar för vald batch. **Visa alla batcher** återställer både batchfilter och sökning.
 
 På varje batchkort finns också **Visa dagbok (antal)** som öppnar dagboken direkt med rätt batch vald. Om du skapar en ny anteckning med en egen batch vald föreslås den batchen automatiskt. Behörigheterna för att skapa och ändra anteckningar är oförändrade.
+
+## Raspberry Pi: start vid uppstart och privat åtkomst utanför hemmet
+
+Se [installationsguiden](docs/RASPBERRY_PI.md). `scripts/install-rpi-service.mjs` hittar aktuell Node-sökväg (även nvm), skapar en systemd-tjänst för den befintliga projektmappen/databasen och aktiverar automatisk start på port 3001. Appen lyssnar fortfarande bara på `127.0.0.1`; Tailscale Serve står för privat HTTPS och åtkomst från anslutna datorer/mobiler. SSH-tunneln behövs då inte.
+
+API:t kräver `APP_PUBLIC_ORIGIN=https://din-pi.ditt-nat.ts.net` och `APP_TRUST_PROXY=1` för proxyåtkomst. Installationsskriptet anger dessa i systemd-tjänsten från Pi:ns Tailscale-adress. Endast exakt denna HTTPS-origin med matchande proxyhuvuden godtas; andra värdar, ändrade origin och anrop från andra webbplatser nekas. Sessionskakan får `Secure` även när TLS avslutas i proxyn. Standardstart på Mac/localhost påverkas inte. Kombinera inte betrodda proxyhuvuden med en öppet tillgänglig backend på `0.0.0.0`.
+
+Ingen tjänst eller Tailscale-anslutning installeras automatiskt på en annan dator genom att filerna ändras här. Kör installationen på själva Pi:n enligt guiden. Veckobackupen via Codex/Apple Mail på Macen följer inte automatiskt med till Pi:n; manuell backup i appen fungerar även där.

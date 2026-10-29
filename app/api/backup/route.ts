@@ -13,7 +13,10 @@ export const dynamic = "force-dynamic";
 const headers = { "Cache-Control": "no-store" };
 function authorize(request: Request, mutation = false) {
   if (!allowedLocalRequest(request, mutation))
-    throw new InputError("Begäran måste komma från den lokala appen.", 403);
+    throw new InputError(
+      "Begäran måste komma från en tillåten adress för appen.",
+      403,
+    );
   const db = getDatabase();
   if (requireUser(db, request).role !== "admin")
     throw new InputError("Administratör krävs.", 403);

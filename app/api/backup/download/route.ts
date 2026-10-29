@@ -14,7 +14,7 @@ const headers = {
 export async function GET(request: Request) {
   try {
     if (!allowedLocalRequest(request))
-      throw new InputError("Endast lokala anrop tillåts.", 403);
+      throw new InputError("Adressen är inte tillåten för appen.", 403);
     const db = getDatabase();
     if (requireUser(db, request).role !== "admin")
       throw new InputError("Administratör krävs.", 403);

@@ -11,14 +11,14 @@ import {
   requireUser,
 } from "@/lib/accounts";
 import { InputError } from "@/lib/validation";
-import { allowedLocalRequest } from "@/lib/local-request";
+import { allowedLocalRequest, secureRequest } from "@/lib/local-request";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 const headers = { "Cache-Control": "no-store" };
 export function GET(request: Request) {
   if (!allowedLocalRequest(request))
     return Response.json(
-      { error: "Endast lokala anrop tillåts." },
+      { error: "Adressen är inte tillåten för appen." },
       { status: 403, headers },
     );
   const db = getDatabase(),
@@ -39,7 +39,7 @@ export function GET(request: Request) {
 export async function POST(request: Request) {
   if (!allowedLocalRequest(request, true))
     return Response.json(
-      { error: "Begäran måste komma från appen." },
+      { error: "Begäran måste komma från en tillåten adress för appen." },
       { status: 403, headers },
     );
   try {
@@ -63,8 +63,7 @@ export async function POST(request: Request) {
         {
           headers: {
             ...headers,
-            "Set-Cookie":
-              "svamp_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0",
+            "Set-Cookie": `svamp_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0${secureRequest(request) ? "; Secure" : ""}`,
           },
         },
       );
@@ -91,7 +90,7 @@ export async function POST(request: Request) {
       {
         headers: {
           ...headers,
-          "Set-Cookie": `svamp_session=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=604800${new URL(request.url).protocol === "https:" ? "; Secure" : ""}`,
+          "Set-Cookie": `svamp_session=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=604800${secureRequest(request) ? "; Secure" : ""}`,
         },
       },
     );
